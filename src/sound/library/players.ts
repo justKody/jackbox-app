@@ -11,5 +11,7 @@ function load<K extends string>(files: Record<K, AudioSource>) {
 export const sfxPlayers = load(clips.sfx);
 export const voicePlayers = load(clips.voices);
 export const fillerPlayers = clips.fillers.map((f) => ({ player: createAudioPlayer(f.file), pools: f.pools as readonly clips.FillerPool[] }));
+// Question voice-overs stream from the server, so one player swaps in each round's clip.
+export const questionPlayer = createAudioPlayer(null);
 export const musicPlayers = load(clips.music);
 Object.values<AudioPlayer>(musicPlayers).forEach((p) => (p.loop = true));

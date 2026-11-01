@@ -23,7 +23,7 @@ import { LandingScreen } from './src/screens/LandingScreen';
 import { LobbyScreen, makeRoomCode } from './src/screens/LobbyScreen';
 import { MatchmakingScreen } from './src/screens/MatchmakingScreen';
 import { VoteScreen } from './src/screens/VoteScreen';
-import { greetReturningPlayer, initSound, setFillers, setMusic } from './src/sound';
+import { greetReturningPlayer, initSound, playQuestion, setFillers, setMusic } from './src/sound';
 import { colors } from './src/theme';
 
 export default function App() {
@@ -140,6 +140,11 @@ function Game({ game, ranked, rank: rankResult, onRestart, onExit }: GameProps) 
   useEffect(() => {
     setFillers(state.phase === 'guess' ? 'guess' : state.phase === 'gameOver' ? null : 'general');
   }, [state.phase]);
+
+  // The Hat reads each question aloud the moment it appears.
+  useEffect(() => {
+    if (question.voiceOver) playQuestion(question.voiceOver);
+  }, [question.id, question.voiceOver]);
 
   // The table holds its reaction until the reveal's drum-roll is over.
   const turnKey = `${state.round}-${state.phase}`;

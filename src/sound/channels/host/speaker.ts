@@ -3,7 +3,7 @@ import { AppState } from 'react-native';
 import { playClip } from '../../core/playClip';
 import { canPlayEffects, effectsVolume, soundSettings } from '../../core/settings';
 import type { Voice } from '../../library/clips';
-import { fillerPlayers, voicePlayers } from '../../library/players';
+import { fillerPlayers, questionPlayer, voicePlayers } from '../../library/players';
 
 /** The Hat says one line at a time: a new line cuts off whatever it was saying. */
 
@@ -39,8 +39,15 @@ export function playVoice(name: Voice) {
   speak(voicePlayers[name]);
 }
 
+/** The Hat reads the question aloud; it cuts off any filler, since the question always wins. */
+export function playQuestion(uri: string) {
+  if (!canPlayEffects()) return;
+  questionPlayer.replace({ uri });
+  speak(questionPlayer);
+}
+
 export function startSpeaker() {
-  const lines = [...Object.values<AudioPlayer>(voicePlayers), ...fillerPlayers.map((f) => f.player)];
+  const lines = [...Object.values<AudioPlayer>(voicePlayers), ...fillerPlayers.map((f) => f.player), questionPlayer];
   const finished = lines.map((p) =>
     p.addListener('playbackStatusUpdate', (status) => {
       if (!status.didJustFinish || speaking !== p) return;

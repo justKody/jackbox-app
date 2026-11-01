@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { GameUpdate, latestGame, onMessage, send } from '../net/server';
+import { assetUrl, GameUpdate, latestGame, onMessage, send } from '../net/server';
 import { RankedResult, recordRankedGame } from './rank';
 import type { Call, GameState, Player } from './types';
 import { GameControls, ROSTER } from './useGame';
@@ -64,7 +64,8 @@ export function useOnlineGame(onDisconnect: () => void): GameControls & { rank?:
 
   const state = toState(update!, myCall && myCall.round === update!.round ? myCall.call : undefined);
   const guesser = state.players[state.guesserIndex];
-  const question = { id: update!.question.id, text: update!.question.text, answer: update!.question.answer ?? 0 };
+  const q = update!.question;
+  const question = { id: q.id, text: q.text, answer: q.answer ?? 0, voiceOver: q.voiceOver && assetUrl(q.voiceOver) };
 
   return {
     state,

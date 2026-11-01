@@ -11,7 +11,7 @@ src/sound/
 │
 ├── library/            WHAT can play: plain data, imports nothing else in src/sound
 │   ├── clips.ts        every sound file, and the name types (Sfx, Voice, FillerPool, MusicTrack)
-│   └── players.ts      one reusable player per clip; the only file that calls createAudioPlayer
+│   └── players.ts      one reusable player per clip, plus one for streamed question clips; the only file that calls createAudioPlayer
 │
 ├── core/               SHARED RULES every channel follows; never imports library/ or channels/
 │   ├── settings.ts     mute and volumes, saved on device; canPlayEffects() is the one "may this play?" check
@@ -22,7 +22,7 @@ src/sound/
     ├── music.ts        the background loop; follows the music volume
     └── host/           the Wizard Hat
         ├── index.ts    ★ entry point for the Hat; nothing outside host/ imports the files below
-        ├── speaker.ts  one line at a time: a new line cuts off the last; playVoice
+        ├── speaker.ts  one line at a time: a new line cuts off the last; playVoice, playQuestion
         ├── fillers.ts  gap-fillers in quiet stretches; setFillers
         └── greeting.ts the welcome-back line on launch
 ```
@@ -38,6 +38,7 @@ import { playSfx, playVoice, setMusic, setFillers } from '../sound';
 
 playSfx('correct');
 playVoice('welcomeBack');
+playQuestion(question.voiceOver); // the server's clip of the Hat reading this round's question
 setMusic('game');
 setFillers('guess'); // null keeps the Hat quiet
 ```

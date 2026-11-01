@@ -3,6 +3,8 @@ export type Question = {
   text: string;
   /** The true answer, 0–100 (%). */
   answer: number;
+  /** Where to stream the Hat reading the question; it plays as the question appears. */
+  voiceOver?: string;
 };
 
 export type Call = 'higher' | 'lower';

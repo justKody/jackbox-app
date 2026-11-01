@@ -21,6 +21,13 @@ function serverUrl() {
   return `ws://${host || 'localhost'}:${PORT}/ws`;
 }
 
+/** A file the server hands out by path ("/assets/…") lives on the same host as the socket. */
+export function assetUrl(path: string) {
+  if (/^https?:\/\//.test(path)) return path;
+  const origin = serverUrl().replace(/^ws/, 'http').replace(/\/ws$/, '');
+  return origin + path;
+}
+
 // What the server sends. Player ids are the server's ("p1", "p2"…), `you` says which is yours.
 export type ServerPlayer = Omit<Player, 'isYou'>;
 
@@ -33,8 +40,8 @@ export type GameUpdate = {
   round: number;
   totalRounds: number;
   guesserId: string;
-  /** `answer` only arrives with the reveal. */
-  question: { id: string; text: string; answer?: number };
+  /** `answer` only arrives with the reveal. `voiceOver` is a url, often relative to the server (see assetUrl). */
+  question: { id: string; text: string; voiceOver?: string; answer?: number };
   guess: number | null;
   /** Where the guesser's dial sits while they're still guessing. */
   dial: number;

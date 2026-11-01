@@ -5,7 +5,7 @@ import { startSpeaker } from './speaker';
 
 export { setFillers } from './fillers';
 export { greetReturningPlayer } from './greeting';
-export { playVoice } from './speaker';
+export { playQuestion, playVoice } from './speaker';
 
 export function startHost() {
   const stops = [startSpeaker(), startFillers()];
