@@ -3,10 +3,11 @@ import { ReactNode, useEffect, useEffectEvent, useState } from 'react';
 import { Animated, Easing, LayoutChangeEvent, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { native, prefersReducedMotion, useAnimatedValue, usePulse, useReduceMotion } from '../motion';
-import { playSfx, setSoundPanelOpen, useSoundSettings } from '../sound';
+import { playSfx, useSoundSettings } from '../sound';
 import { alpha, colors, fonts, radii, shade } from '../theme';
 import { Pop } from './Effects';
 import { HatMood, HatWizard, SparkleShape } from './HatWizard';
+import { setSoundPanelOpen } from './soundPanel';
 
 // ─── Top bar ────────────────────────────────────────────────────────────────
 

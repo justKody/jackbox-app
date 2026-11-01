@@ -23,7 +23,7 @@ import { LandingScreen } from './src/screens/LandingScreen';
 import { LobbyScreen, makeRoomCode } from './src/screens/LobbyScreen';
 import { MatchmakingScreen } from './src/screens/MatchmakingScreen';
 import { VoteScreen } from './src/screens/VoteScreen';
-import { greetReturningPlayer, setMusic } from './src/sound';
+import { greetReturningPlayer, initSound, setFillers, setMusic } from './src/sound';
 import { colors } from './src/theme';
 
 export default function App() {
@@ -40,8 +40,13 @@ export default function App() {
   const home = () => setRoute({ name: 'landing' });
   const inGame = route.name === 'game' || route.name === 'online';
 
+  useEffect(initSound, []);
   useEffect(greetReturningPlayer, []);
   useEffect(() => setMusic(inGame ? 'game' : 'menu'), [inGame]);
+  // A running game picks its own fillers per phase.
+  useEffect(() => {
+    if (!inGame) setFillers('general');
+  }, [inGame]);
 
   // Android back: menus step back to the landing screen; a running game is left alone.
   useEffect(() => {
@@ -130,6 +135,11 @@ function Game({ game, ranked, rank: rankResult, onRestart, onExit }: GameProps) 
   const { state, guesser, question, voters, totalRounds, lockGuess, vote, reveal, next, dial, moveDial } = game;
   const round = state.round + 1;
   const isLastRound = round >= totalRounds;
+
+  // The final scores get their moment without the Hat chattering over them.
+  useEffect(() => {
+    setFillers(state.phase === 'guess' ? 'guess' : state.phase === 'gameOver' ? null : 'general');
+  }, [state.phase]);
 
   // The table holds its reaction until the reveal's drum-roll is over.
   const turnKey = `${state.round}-${state.phase}`;

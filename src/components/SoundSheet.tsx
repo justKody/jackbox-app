@@ -3,10 +3,11 @@ import { ReactNode, useEffect, useRef, useState } from 'react';
 import { AccessibilityActionEvent, Animated, GestureResponderEvent, LayoutChangeEvent, Pressable, Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { native, useAnimatedValue } from '../motion';
-import { playSfx, setEffectsVolume, setMusicVolume, setMuted, setSoundPanelOpen, useSoundPanelOpen, useSoundSettings } from '../sound';
+import { playSfx, setEffectsVolume, setMusicVolume, setMuted, useSoundSettings } from '../sound';
 import { alpha, colors, fonts } from '../theme';
 import { SparkleShape } from './HatWizard';
 import { Sheet } from './Sheet';
+import { setSoundPanelOpen, useSoundPanelOpen } from './soundPanel';
 import { SpeakerIcon, styles } from './ui';
 
 /** Sound panel: a master switch plus music and effects volumes. Mounted once at the app root. */
