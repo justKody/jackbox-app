@@ -1,7 +1,6 @@
 import { AudioPlayer } from 'expo-audio';
 import { AppState } from 'react-native';
 import { canPlayEffects } from '../../core/settings';
-import { isAudioUnlocked } from '../../core/unlock';
 import type { FillerPool } from '../../library/clips';
 import { fillerPlayers } from '../../library/players';
 import { currentLine, onLineChange, speak, stopSpeaking } from './speaker';
@@ -27,7 +26,7 @@ function scheduleFiller() {
 
 function playFiller() {
   // A filler never talks over another line, or plays where nobody can hear it; it waits another break.
-  if (!fillerPool || currentLine()?.playing || !isAudioUnlocked() || !canPlayEffects()) {
+  if (!fillerPool || currentLine()?.playing || !canPlayEffects()) {
     scheduleFiller();
     return;
   }

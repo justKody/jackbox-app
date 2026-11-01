@@ -1,5 +1,4 @@
 import { loadSettings, soundSettings } from '../core/settings';
-import { whenUnlocked } from '../core/unlock';
 import type { MusicTrack } from '../library/clips';
 import { musicPlayers } from '../library/players';
 
@@ -27,8 +26,7 @@ export function setMusic(next: MusicTrack | null) {
   });
 }
 
-/** Keeps the loop in step with the volume settings, and retries it once a browser allows audio. */
+/** Keeps the loop in step with the volume settings. */
 export function startMusic() {
-  const stops = [soundSettings.subscribe(applyMusic), whenUnlocked(applyMusic)];
-  return () => stops.forEach((stop) => stop());
+  return soundSettings.subscribe(applyMusic);
 }

@@ -7,7 +7,7 @@ const LEGACY_MUTE_KEY = 'trivia:muted';
 /** Volumes are whole percents, 0–100. */
 export type SoundSettings = { muted: boolean; music: number; effects: number };
 
-export const soundSettings = createStore<SoundSettings>({ muted: false, music: 70, effects: 100 });
+export const soundSettings = createStore<SoundSettings>({ muted: true, music: 70, effects: 100 });
 
 let loaded: Promise<void> | undefined;
 /** Reads the saved settings once; every caller waits on that same read. */

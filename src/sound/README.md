@@ -15,7 +15,6 @@ src/sound/
 │
 ├── core/               SHARED RULES every channel follows; never imports library/ or channels/
 │   ├── settings.ts     mute and volumes, saved on device; canPlayEffects() is the one "may this play?" check
-│   ├── unlock.ts       browsers block audio until the first tap; whenUnlocked(fn) waits for it
 │   └── playClip.ts     plays any clip from the top at the effects volume
 │
 └── channels/           WHAT YOU HEAR: one per kind of sound, built from library/ and core/
