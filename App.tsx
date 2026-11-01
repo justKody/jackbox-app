@@ -8,16 +8,22 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Enter } from './src/components/Effects';
 import { HatWizard } from './src/components/HatWizard';
 import { MagicSky } from './src/components/MagicSky';
-import { RankedResult, recordRankedGame } from './src/game/rank';
-import { Seat, useGame } from './src/game/useGame';
+import { SoundSheet } from './src/components/SoundSheet';
+import { PlayerTable } from './src/avatar/PlayerTable';
+import type { RankedResult } from './src/game/rank';
+import { tableState } from './src/game/table';
+import { GameControls, Seat, useGame } from './src/game/useGame';
+import { useOnlineGame } from './src/game/useOnlineGame';
+import { close as closeServer } from './src/net/server';
+import { AvatarScreen } from './src/screens/AvatarScreen';
 import { GameOverScreen } from './src/screens/GameOverScreen';
 import { GuessScreen } from './src/screens/GuessScreen';
-import { RevealScreen } from './src/screens/RevealScreen';
+import { RevealScreen, SUSPENSE_MS } from './src/screens/RevealScreen';
 import { LandingScreen } from './src/screens/LandingScreen';
 import { LobbyScreen, makeRoomCode } from './src/screens/LobbyScreen';
 import { MatchmakingScreen } from './src/screens/MatchmakingScreen';
 import { VoteScreen } from './src/screens/VoteScreen';
-import { startMusic, stopMusic } from './src/sound';
+import { greetReturningPlayer, setMusic } from './src/sound';
 import { colors } from './src/theme';
 
 export default function App() {
@@ -32,10 +38,14 @@ export default function App() {
   });
   const [route, setRoute] = useState<Route>({ name: 'landing' });
   const home = () => setRoute({ name: 'landing' });
+  const inGame = route.name === 'game' || route.name === 'online';
+
+  useEffect(greetReturningPlayer, []);
+  useEffect(() => setMusic(inGame ? 'game' : 'menu'), [inGame]);
 
   // Android back: menus step back to the landing screen; a running game is left alone.
   useEffect(() => {
-    if (route.name === 'landing' || route.name === 'game') return;
+    if (route.name === 'landing' || route.name === 'game' || route.name === 'online') return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       setRoute({ name: 'landing' });
       return true;
@@ -46,16 +56,22 @@ export default function App() {
   let screen;
   switch (route.name) {
     case 'landing':
-      screen = <LandingScreen onChoose={(c) => setRoute(c === 'ranked' ? { name: 'ranked' } : { name: 'lobby', code: makeRoomCode() })} />;
+      screen = <LandingScreen onChoose={(c) => setRoute(c === 'lobby' ? { name: 'lobby', code: makeRoomCode() } : c === 'ranked' ? { name: 'ranked' } : { name: 'avatar' })} />;
       break;
     case 'ranked':
-      screen = <MatchmakingScreen onMatched={(roster) => setRoute({ name: 'game', roster, ranked: true, id: Date.now() })} onCancel={home} />;
+      screen = <MatchmakingScreen onMatched={() => setRoute({ name: 'online', id: Date.now() })} onCancel={home} />;
       break;
     case 'lobby':
-      screen = <LobbyScreen code={route.code} onStart={(roster) => setRoute({ name: 'game', roster, ranked: false, id: Date.now() })} onBack={home} />;
+      screen = <LobbyScreen code={route.code} onStart={(roster) => setRoute({ name: 'game', roster, id: Date.now() })} onBack={home} />;
+      break;
+    case 'avatar':
+      screen = <AvatarScreen onBack={home} />;
       break;
     case 'game':
-      screen = <Game key={route.id} roster={route.roster} ranked={route.ranked} onExit={home} />;
+      screen = <LocalGame key={route.id} roster={route.roster} onExit={home} />;
+      break;
+    case 'online':
+      screen = <OnlineGame key={route.id} onPlayAgain={() => setRoute({ name: 'ranked' })} onExit={home} />;
       break;
   }
 
@@ -76,39 +92,72 @@ export default function App() {
           )}
         </SafeAreaView>
       </View>
+      {fontsLoaded && <SoundSheet />}
     </SafeAreaProvider>
   );
 }
 
-type Route = { name: 'landing' } | { name: 'ranked' } | { name: 'lobby'; code: string } | { name: 'game'; roster: Seat[]; ranked: boolean; id: number };
+type Route =
+  | { name: 'landing' }
+  | { name: 'ranked' }
+  | { name: 'avatar' }
+  | { name: 'lobby'; code: string }
+  | { name: 'game'; roster: Seat[]; id: number }
+  | { name: 'online'; id: number };
 
-function Game({ roster, ranked, onExit }: { roster: Seat[]; ranked: boolean; onExit: () => void }) {
-  const { state, guesser, question, voters, totalRounds, lockGuess, vote, reveal, next, restart } = useGame(roster);
+/** A lobby game, played on this device with rivals: just for fun, no RP. */
+function LocalGame({ roster, onExit }: { roster: Seat[]; onExit: () => void }) {
+  const game = useGame(roster);
+  return <Game game={game} ranked={false} onRestart={game.restart} onExit={onExit} />;
+}
+
+/**
+ * A ranked match on the game server. Leaving the screen leaves the match: the socket closes
+ * here rather than in an effect cleanup, which hot reloads would run mid-game.
+ */
+function OnlineGame({ onPlayAgain, onExit }: { onPlayAgain: () => void; onExit: () => void }) {
+  const leave = (then: () => void) => () => {
+    closeServer();
+    then();
+  };
+  const game = useOnlineGame(leave(onExit));
+  return <Game game={game} ranked rank={game.rank} onRestart={leave(onPlayAgain)} onExit={leave(onExit)} />;
+}
+
+type GameProps = { game: GameControls; ranked: boolean; rank?: RankedResult; onRestart: () => void; onExit: () => void };
+
+function Game({ game, ranked, rank: rankResult, onRestart, onExit }: GameProps) {
+  const { state, guesser, question, voters, totalRounds, lockGuess, vote, reveal, next, dial, moveDial } = game;
   const round = state.round + 1;
   const isLastRound = round >= totalRounds;
-  const [rankResult, setRankResult] = useState<RankedResult>();
 
-  // Leaving the last reveal ends the match: that's when a ranked game counts.
-  const onNext = () => {
-    if (isLastRound && ranked && state.phase === 'reveal') setRankResult(recordRankedGame(state.players));
-    next();
-  };
-  const onRestart = () => {
-    setRankResult(undefined);
-    restart();
-  };
-
+  // The table holds its reaction until the reveal's drum-roll is over.
+  const turnKey = `${state.round}-${state.phase}`;
+  const [revealedTurn, setRevealedTurn] = useState('');
   useEffect(() => {
-    startMusic();
-    return stopMusic;
-  }, []);
+    if (state.phase !== 'reveal') return;
+    const t = setTimeout(() => setRevealedTurn(turnKey), SUSPENSE_MS);
+    return () => clearTimeout(t);
+  }, [state.phase, turnKey]);
+  const table = tableState(state, revealedTurn === turnKey);
 
   // Each phase gets a fresh key, so every screen change plays its entrance.
   const key = `${question.id}-${state.phase}`;
   let screen;
   switch (state.phase) {
     case 'guess':
-      screen = <GuessScreen question={question} round={round} total={totalRounds} waiting={voters} onLock={lockGuess} />;
+      screen = (
+        <GuessScreen
+          question={question}
+          round={round}
+          total={totalRounds}
+          guesser={guesser}
+          players={state.players}
+          dial={dial}
+          onDial={moveDial}
+          onLock={lockGuess}
+        />
+      );
       break;
     case 'vote':
       screen = (
@@ -133,10 +182,9 @@ function Game({ roster, ranked, onExit }: { roster: Seat[]; ranked: boolean; onE
           total={totalRounds}
           guesser={guesser}
           guess={state.guess ?? 0}
-          players={state.players}
           results={state.results}
           isLastRound={isLastRound}
-          onNext={onNext}
+          onNext={next}
         />
       );
       break;
@@ -145,8 +193,12 @@ function Game({ roster, ranked, onExit }: { roster: Seat[]; ranked: boolean; onE
       break;
   }
   return (
-    <Enter key={key} from={24} style={{ flex: 1 }}>
-      {screen}
-    </Enter>
+    <View style={{ flex: 1 }}>
+      <Enter key={key} from={24} style={{ flex: 1 }}>
+        {screen}
+      </Enter>
+      {/* Stays mounted through every phase so the animals never reload mid-match. */}
+      {state.phase !== 'gameOver' && <PlayerTable players={state.players} table={table} />}
+    </View>
   );
 }

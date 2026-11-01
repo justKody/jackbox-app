@@ -149,5 +149,11 @@ export function useGame(roster: Seat[] = ROSTER) {
     reveal: useCallback(() => dispatch({ type: 'reveal' }), []),
     next: useCallback(() => dispatch({ type: 'next' }), []),
     restart: useCallback(() => dispatch({ type: 'restart' }), []),
+    // Only an online game has someone else's dial to watch; here the guess screen is always yours.
+    dial: undefined as number | undefined,
+    moveDial: useCallback((_value: number) => {}, []),
   };
 }
+
+/** What a game screen drives, whether the game runs here (useGame) or on the server (useOnlineGame). */
+export type GameControls = ReturnType<typeof useGame>;

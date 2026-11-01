@@ -14,11 +14,15 @@ type Props = {
   onChange: (v: number) => void;
   size?: number;
   disabled?: boolean;
+  /** Someone else's dial: it follows `value` but can't be turned, and has no steppers. */
+  readOnly?: boolean;
+  /** What a screen reader calls the dial. */
+  label?: string;
 };
 
 const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
 
-export function CircleDial({ value, onChange, size = 280, disabled = false }: Props) {
+export function CircleDial({ value, onChange, size = 280, disabled = false, readOnly = false, label = 'Your guess in percent' }: Props) {
   const s = size / 280; // everything is drawn on a 280 grid, then scaled
   const center = size / 2;
   const R = 112 * s;
@@ -35,7 +39,7 @@ export function CircleDial({ value, onChange, size = 280, disabled = false }: Pr
   const live = useRef({ value, onChange, disabled, origin: { x: 0, y: 0 } });
   live.current.value = value;
   live.current.onChange = onChange;
-  live.current.disabled = disabled;
+  live.current.disabled = disabled || readOnly;
 
   useEffect(() => {
     Animated.spring(knobScale, {
@@ -124,10 +128,10 @@ export function CircleDial({ value, onChange, size = 280, disabled = false }: Pr
         {...pan.panHandlers}
         style={StyleSheet.absoluteFill}
         accessible
-        accessibilityRole="adjustable"
-        accessibilityLabel="Your guess in percent"
+        accessibilityRole={readOnly ? 'progressbar' : 'adjustable'}
+        accessibilityLabel={label}
         accessibilityValue={{ min: 0, max: 100, now: value, text: `${value} percent` }}
-        accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+        accessibilityActions={readOnly ? undefined : [{ name: 'increment' }, { name: 'decrement' }]}
         onAccessibilityAction={onA11yAction}
       >
         <Svg width={size} height={size} pointerEvents="none">
@@ -246,10 +250,12 @@ export function CircleDial({ value, onChange, size = 280, disabled = false }: Pr
       </View>
 
       {/* Fine-tune buttons sit in the ring's bottom gap, above the pan surface. */}
-      <View style={[styles.steppers, { top: 228 * s, left: center - 50 }]}>
-        <Stepper label="−" a11y="Decrease by 1" disabled={disabled} onPress={() => commit(clamp(value - 1))} />
-        <Stepper label="+" a11y="Increase by 1" disabled={disabled} onPress={() => commit(clamp(value + 1))} />
-      </View>
+      {!readOnly && (
+        <View style={[styles.steppers, { top: 228 * s, left: center - 50 }]}>
+          <Stepper label="−" a11y="Decrease by 1" disabled={disabled} onPress={() => commit(clamp(value - 1))} />
+          <Stepper label="+" a11y="Increase by 1" disabled={disabled} onPress={() => commit(clamp(value + 1))} />
+        </View>
+      )}
     </View>
   );
 }

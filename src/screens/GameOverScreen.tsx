@@ -3,7 +3,7 @@ import { Animated, Easing, ScrollView, Text, View } from 'react-native';
 import Svg, { Defs, Path, RadialGradient, Stop } from 'react-native-svg';
 import { Confetti, Enter, Pop } from '../components/Effects';
 import { HatWizard, SparkleShape } from '../components/HatWizard';
-import { Avatar, GhostButton, MuteButton, PrimaryButton, SectionHeader, styles, WandIcon } from '../components/ui';
+import { Avatar, GhostButton, PrimaryButton, SectionHeader, SoundButton, styles, WandIcon } from '../components/ui';
 import { RankEmblem, RankProgress } from '../components/Rank';
 import { ordinal } from '../components/Scoreboard';
 import { RankedResult, rankFor } from '../game/rank';
@@ -22,7 +22,7 @@ export function GameOverScreen({ players, ranked: rankedMatch, rank, onRestart, 
   const score = useCountUp(winner.score, { duration: 1400, delay: 500 });
 
   useEffect(() => {
-    playSfx(winner.isYou ? 'win' : 'wrong');
+    playSfx(winner.isYou ? 'win' : 'lose');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -30,7 +30,7 @@ export function GameOverScreen({ players, ranked: rankedMatch, rank, onRestart, 
     <View style={styles.screen}>
       <Confetti count={48} duration={4200} />
       <View style={{ alignItems: 'flex-end' }}>
-        <MuteButton />
+        <SoundButton />
       </View>
 
       <View style={{ alignItems: 'center', gap: 6 }}>

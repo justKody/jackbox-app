@@ -1,9 +1,9 @@
 import * as Haptics from 'expo-haptics';
 import { useEffect, useState } from 'react';
-import { Animated, Easing, ScrollView, Text, View } from 'react-native';
+import { Animated, Easing, Text, useWindowDimensions, View } from 'react-native';
 import { Confetti, Enter, Pop, SparkleBurst } from '../components/Effects';
 import { HatMood } from '../components/HatWizard';
-import { ArrowIcon, Avatar, Chip, HostBubble, PrimaryButton, SectionHeader, styles, TopBar } from '../components/ui';
+import { ArrowIcon, HostBubble, PrimaryButton, styles, TopBar } from '../components/ui';
 import { correctCall } from '../game/scoring';
 import type { Player, Question, RoundResult } from '../game/types';
 import { native, prefersReducedMotion, useAnimatedValue, useCountUp } from '../motion';
@@ -16,16 +16,17 @@ type Props = {
   total: number;
   guesser: Player;
   guess: number;
-  players: Player[];
   results: RoundResult[];
   isLastRound: boolean;
   onNext: () => void;
 };
 
-const SUSPENSE_MS = 1400;
+export const SUSPENSE_MS = 1400;
 
-export function RevealScreen({ question, round, total, guesser, guess, players, results, isLastRound, onNext }: Props) {
+export function RevealScreen({ question, round, total, guesser, guess, results, isLastRound, onNext }: Props) {
   const answer = question.answer;
+  // Short phones share the screen with the player table, so the big number gives way.
+  const compact = useWindowDimensions().height < 760;
   const right = correctCall(guess, answer);
   const off = Math.abs(guess - answer);
   const me = results.find((r) => r.playerId === 'you');
@@ -35,6 +36,7 @@ export function RevealScreen({ question, round, total, guesser, guess, players, 
   const bar = useAnimatedValue(0);
 
   useEffect(() => {
+    if (!revealed) playSfx('drumroll');
     const t = setTimeout(() => setRevealed(true), revealed ? 0 : SUSPENSE_MS);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -79,10 +81,6 @@ export function RevealScreen({ question, round, total, guesser, guess, players, 
   // Only celebrate when the Hat does: bullseyes, right calls, or a really close guess.
   const celebrate = revealed && (bullseye || (!!me?.correct && (!guesser.isYou || me.points >= 80)));
 
-  const rows = results
-    .map((r) => ({ r, p: players.find((p) => p.id === r.playerId)! }))
-    .sort((a, b) => b.r.points - a.r.points || b.p.score - a.p.score);
-
   const lo = Math.min(guess, answer);
   const growRight = answer >= guess;
 
@@ -91,7 +89,7 @@ export function RevealScreen({ question, round, total, guesser, guess, players, 
       {celebrate ? <Confetti count={bullseye ? 44 : 26} /> : null}
       <TopBar round={round} total={total} label="Reveal" />
 
-      <HostBubble mood={mood} bubbleKey={line} size={78}>
+      <HostBubble mood={mood} bubbleKey={line} size={compact ? 62 : 78}>
         {line}
       </HostBubble>
 
@@ -102,8 +100,8 @@ export function RevealScreen({ question, round, total, guesser, guess, players, 
         <View>
           <SparkleBurst trigger={celebrate ? 1 : 0} count={18} radius={120} />
           <Animated.View style={[styles.bigNumberRow, { transform: [{ scale: pop }] }]}>
-            <Text style={[styles.bigNumber, { fontSize: 100, lineHeight: 108, color: revealed ? colors.gold : colors.text }]}>{shown}</Text>
-            <Text style={[styles.bigNumber, { fontSize: 44, color: revealed ? colors.gold : colors.text }]}>%</Text>
+            <Text style={[styles.bigNumber, { fontSize: compact ? 72 : 100, lineHeight: compact ? 78 : 108, color: revealed ? colors.gold : colors.text }]}>{shown}</Text>
+            <Text style={[styles.bigNumber, { fontSize: compact ? 32 : 44, color: revealed ? colors.gold : colors.text }]}>%</Text>
           </Animated.View>
         </View>
       </View>
@@ -169,16 +167,8 @@ export function RevealScreen({ question, round, total, guesser, guess, players, 
             </View>
           </Pop>
 
-          <View style={{ flex: 1, gap: 8 }}>
-            <SectionHeader left="This round" right="Total" />
-            <ScrollView contentContainerStyle={{ gap: 8 }} showsVerticalScrollIndicator={false}>
-              {rows.map(({ r, p }, i) => (
-                <Enter key={p.id} delay={200 + i * 90}>
-                  <ResultRow player={p} result={r} delay={400 + i * 90} />
-                </Enter>
-              ))}
-            </ScrollView>
-          </View>
+          {/* Everyone's points for the round show on the player table below. */}
+          <View style={{ flex: 1 }} />
 
           <Enter delay={500}>
             <PrimaryButton label={isLastRound ? 'See final scores' : 'Next question'} onPress={onNext} height={56} />
@@ -187,21 +177,6 @@ export function RevealScreen({ question, round, total, guesser, guess, players, 
       ) : (
         <View style={{ flex: 1 }} />
       )}
-    </View>
-  );
-}
-
-function ResultRow({ player: p, result: r, delay }: { player: Player; result: RoundResult; delay: number }) {
-  const total = useCountUp(p.score, { from: p.score - r.points, duration: 800, delay });
-  return (
-    <View style={[styles.row, { paddingVertical: 9 }, p.isYou && { borderColor: alpha(colors.magic, 0.45) }]}>
-      <Avatar initials={p.initials} color={p.color} size={32} />
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontFamily: fonts.medium, fontSize: 15, color: colors.text }}>{p.isYou ? 'You' : p.name}</Text>
-        <Text style={{ fontFamily: fonts.body, fontSize: 12, color: colors.muted }}>{r.label}</Text>
-      </View>
-      <Chip ok={r.points > 0}>{r.points > 0 ? `+${r.points}` : '0'}</Chip>
-      <Text style={{ width: 46, textAlign: 'right', fontFamily: fonts.number, fontSize: 17, color: colors.text, fontVariant: ['tabular-nums'] }}>{total}</Text>
     </View>
   );
 }

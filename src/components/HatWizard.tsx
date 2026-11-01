@@ -156,6 +156,7 @@ export function HatWizard({ size = 120, mood = 'idle', look, aura = true, onPres
   const waveDeg = wave.interpolate({ inputRange: [0, 1], outputRange: ['-18deg', '22deg'] });
   const featherDeg = flutter.interpolate({ inputRange: [0, 1], outputRange: ['-4deg', '5deg'] });
   const leafDeg = flutter.interpolate({ inputRange: [0, 1], outputRange: ['6deg', '-5deg'] });
+  const beardDeg = flutter.interpolate({ inputRange: [0, 1], outputRange: ['-1.5deg', '2deg'] });
   const pupilX = glance.x.interpolate({ inputRange: [-1, 1], outputRange: [-3.2 * u, 3.2 * u], extrapolate: 'clamp' });
   const pupilY = glance.y.interpolate({ inputRange: [-1, 1], outputRange: [-2.6 * u, 2.6 * u], extrapolate: 'clamp' });
   const shadowScale = bob.interpolate({ inputRange: [0, 1], outputRange: [1, 1 - rig.bob / 40] });
@@ -295,6 +296,32 @@ export function HatWizard({ size = 120, mood = 'idle', look, aura = true, onPres
             <Path d="M 138 148 C 140 158 148 166 158 166 C 156 158 148 150 138 148 Z" fill="#C7B74E" />
             <Ellipse cx={135} cy={150} rx={5} ry={6} fill="#B07A3E" />
             <Path d="M 129 147 C 131 141 139 141 141 147 Z" fill="#6E4524" />
+          </Svg>
+        </Animated.View>
+
+        {/* Beard: grows from the cheeks around the mouth and spills over the band and brim, swaying from the chin. */}
+        <Animated.View style={[abs, { transformOrigin: origin(100, 118), transform: [{ rotate: beardDeg }] }]}>
+          <Svg width={size} height={size} viewBox="0 0 200 200">
+            <Defs>
+              <LinearGradient id={`beard${id}`} x1="0" y1="0" x2="0.35" y2="1">
+                <Stop offset="0" stopColor="#FFFFFF" />
+                <Stop offset="0.45" stopColor={colors.beard} />
+                <Stop offset="1" stopColor="#C4B9E8" />
+              </LinearGradient>
+            </Defs>
+            <Path
+              d="M 70 110 C 64 120 64 132 68 140 C 63 150 66 162 76 166 C 75 176 82 184 91 183 C 92 191 99 196 106 193 C 112 191 114 186 111 182 C 121 183 128 174 126 166 C 134 160 135 148 130 140 C 134 130 134 118 131 110 C 126 118 121 121 116 121 C 110 121 105 117 100.5 117 C 96 117 91 121 85 121 C 80 121 74 118 70 110 Z"
+              fill={`url(#beard${id})`}
+              stroke={colors.beardDeep}
+              strokeWidth={1.2}
+              strokeLinejoin="round"
+            />
+            {/* Locks */}
+            <Path d="M 80 130 C 78 144 82 156 90 168" stroke={colors.beardDeep} strokeWidth={1.4} strokeLinecap="round" fill="none" opacity={0.55} />
+            <Path d="M 92 128 C 90 146 94 162 100 178" stroke={colors.beardDeep} strokeWidth={1.4} strokeLinecap="round" fill="none" opacity={0.55} />
+            <Path d="M 109 128 C 111 146 110 162 106 180" stroke={colors.beardDeep} strokeWidth={1.4} strokeLinecap="round" fill="none" opacity={0.55} />
+            <Path d="M 121 130 C 124 144 121 156 114 168" stroke={colors.beardDeep} strokeWidth={1.4} strokeLinecap="round" fill="none" opacity={0.55} />
+            <Path d="M 74 122 C 72 132 73 142 78 150" stroke="#FFFFFF" strokeWidth={1.6} strokeLinecap="round" fill="none" opacity={0.6} />
           </Svg>
         </Animated.View>
 

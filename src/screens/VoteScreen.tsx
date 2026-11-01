@@ -1,9 +1,9 @@
 import * as Haptics from 'expo-haptics';
-import { useState } from 'react';
-import { Animated, Pressable, ScrollView, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Animated, Pressable, Text, View } from 'react-native';
 import Svg, { Defs, Ellipse, RadialGradient, Stop } from 'react-native-svg';
-import { Enter, Pop, SparkleBurst, ThinkingDots } from '../components/Effects';
-import { ArrowIcon, Avatar, Chip, HostBubble, QuestionCard, SectionHeader, styles, TopBar } from '../components/ui';
+import { Enter, SparkleBurst } from '../components/Effects';
+import { ArrowIcon, Avatar, HostBubble, QuestionCard, styles, TopBar } from '../components/ui';
 import { VOTE_SECONDS } from '../game/useGame';
 import { useCountdown } from '../game/useCountdown';
 import type { Call, Player, Question } from '../game/types';
@@ -31,6 +31,11 @@ export function VoteScreen({ question, round, total, guesser, guess, voters, vot
   const seconds = useCountdown(VOTE_SECONDS, `${question.id}-vote`, true, onTimeUp);
   const glow = usePulse(2400);
   const [writing, setWriting] = useState(!youAreGuesser);
+  // Only players who still owe a call hear the clock.
+  const waiting = !myCall && !youAreGuesser;
+  useEffect(() => {
+    if (waiting && seconds > 0 && seconds <= 5) playSfx('tick');
+  }, [seconds, waiting]);
 
   const pick = (call: Call) => {
     if (myCall || youAreGuesser) return;
@@ -39,7 +44,6 @@ export function VoteScreen({ question, round, total, guesser, guess, voters, vot
     onVote(call);
   };
 
-  const name = youAreGuesser ? 'You' : guesser.name;
   const [mood, line] = allIn
     ? (['cast', 'All calls are in… let’s reveal!'] as const)
     : writing
@@ -50,7 +54,8 @@ export function VoteScreen({ question, round, total, guesser, guess, voters, vot
         ? (['happy', `Bold! You called ${myCall}. Waiting on the others…`] as const)
         : seconds <= 5
           ? (['shock', 'Tick tock! Higher or lower?'] as const)
-          : (['idle', `${name} guessed ${guess}%. Is the real answer higher or lower?`] as const);
+          : // The guess and who made it sit right under the question, the Hat doesn't repeat them.
+            (['idle', ''] as const);
 
   return (
     <View style={styles.screen}>
@@ -63,68 +68,48 @@ export function VoteScreen({ question, round, total, guesser, guess, voters, vot
       {/* If you guessed, you already watched this question being written on the guess screen. */}
       <QuestionCard text={question.text} compact animate={!youAreGuesser} onWritingChange={setWriting} />
 
-      <Enter delay={150} scale>
-        <View style={{ alignItems: 'center', gap: 2 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Avatar initials={guesser.initials} color={guesser.color} size={24} />
-            <Text style={styles.eyebrow}>{youAreGuesser ? 'Your guess' : `${guesser.name}’s guess`}</Text>
-          </View>
-          <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-            <Animated.View
-              style={{
-                position: 'absolute',
-                opacity: glow.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] }),
-                transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1.1] }) }],
-              }}
-            >
-              <Svg width={240} height={130}>
-                <Defs>
-                  <RadialGradient id="guessGlow" cx="50%" cy="50%" rx="50%" ry="50%">
-                    <Stop offset="0" stopColor={colors.gold} stopOpacity={0.3} />
-                    <Stop offset="1" stopColor={colors.gold} stopOpacity={0} />
-                  </RadialGradient>
-                </Defs>
-                <Ellipse cx={120} cy={65} rx={120} ry={65} fill="url(#guessGlow)" />
-              </Svg>
-            </Animated.View>
-            <View style={styles.bigNumberRow}>
-              <Text style={[styles.bigNumber, { fontSize: 80, lineHeight: 88 }]}>{guess}</Text>
-              <Text style={[styles.bigNumber, { fontSize: 36 }]}>%</Text>
+      {/* Who has locked in now shows on the player table, so the guess takes the middle. */}
+      <View style={{ flex: 1, justifyContent: 'center', gap: 16 }}>
+        <Enter delay={150} scale>
+          <View style={{ alignItems: 'center', gap: 2 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Avatar initials={guesser.initials} color={guesser.color} size={24} />
+              <Text style={styles.eyebrow}>{youAreGuesser ? 'Your guess' : `${guesser.name}’s guess`}</Text>
+            </View>
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <Animated.View
+                style={{
+                  position: 'absolute',
+                  opacity: glow.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] }),
+                  transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1.1] }) }],
+                }}
+              >
+                <Svg width={240} height={130}>
+                  <Defs>
+                    <RadialGradient id="guessGlow" cx="50%" cy="50%" rx="50%" ry="50%">
+                      <Stop offset="0" stopColor={colors.gold} stopOpacity={0.3} />
+                      <Stop offset="1" stopColor={colors.gold} stopOpacity={0} />
+                    </RadialGradient>
+                  </Defs>
+                  <Ellipse cx={120} cy={65} rx={120} ry={65} fill="url(#guessGlow)" />
+                </Svg>
+              </Animated.View>
+              <View style={styles.bigNumberRow}>
+                <Text style={[styles.bigNumber, { fontSize: 80, lineHeight: 88 }]}>{guess}</Text>
+                <Text style={[styles.bigNumber, { fontSize: 36 }]}>%</Text>
+              </View>
             </View>
           </View>
-        </View>
-      </Enter>
-
-      {!youAreGuesser && (
-        <Enter delay={260}>
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            <CallButton call="higher" mine={myCall} onPress={() => pick('higher')} />
-            <CallButton call="lower" mine={myCall} onPress={() => pick('lower')} />
-          </View>
         </Enter>
-      )}
 
-      <View style={{ flex: 1, gap: 8, minHeight: 120 }}>
-        <SectionHeader left="Players" right={`${lockedCount} / ${voters.length} locked`} />
-        <ScrollView contentContainerStyle={{ gap: 8 }} showsVerticalScrollIndicator={false}>
-          {voters.map((p, i) => (
-            <Enter key={p.id} delay={320 + i * 70}>
-              <View style={[styles.row, p.isYou && { borderColor: alpha(colors.magic, 0.45) }]}>
-                <Avatar initials={p.initials} color={p.color} />
-                <Text style={styles.rowName}>{p.isYou ? 'You' : p.name}</Text>
-                {votes[p.id] ? (
-                  <Pop key="locked">
-                    <Chip ok>{p.isYou ? `Locked · ${votes[p.id]}` : 'Locked'}</Chip>
-                  </Pop>
-                ) : (
-                  <Chip ok={false}>
-                    <ThinkingDots />
-                  </Chip>
-                )}
-              </View>
-            </Enter>
-          ))}
-        </ScrollView>
+        {!youAreGuesser && (
+          <Enter delay={260}>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <CallButton call="higher" mine={myCall} onPress={() => pick('higher')} />
+              <CallButton call="lower" mine={myCall} onPress={() => pick('lower')} />
+            </View>
+          </Enter>
+        )}
       </View>
     </View>
   );

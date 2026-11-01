@@ -32,6 +32,8 @@ export const colors = {
   leatherDeep: '#5C3920',
   leaf: '#9ACD5E',
   leafDeep: '#5E8A33',
+  beard: '#ECE7FB', // moonlit silver
+  beardDeep: '#A99DD6',
 
   // Parchment (the question scroll)
   parchment: '#F4E7C8',

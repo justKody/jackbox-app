@@ -1,16 +1,21 @@
 import * as Haptics from 'expo-haptics';
+import { Image } from 'expo-image';
 import { useState } from 'react';
 import { Pressable, Text, useWindowDimensions, View } from 'react-native';
+import { AnimalSwatch } from '../avatar/AnimalSwatch';
+import { useWardrobe } from '../avatar/store';
+import { SKINS } from '../avatar/skins';
 import { Enter, SparkleBurst } from '../components/Effects';
-import { HatMood, HatWizard, SparkleShape } from '../components/HatWizard';
+import { HatWizard, SparkleShape } from '../components/HatWizard';
 import { RankBadge } from '../components/Rank';
 import { ScoreboardSheet } from '../components/Scoreboard';
 import { Sheet } from '../components/Sheet';
-import { ArrowIcon, MenuCard, MuteButton, styles, TrophyIcon, UsersIcon } from '../components/ui';
+import { ArrowIcon, MenuCard, SoundButton, styles, TrophyIcon, UsersIcon } from '../components/ui';
+import { useReduceMotion } from '../motion';
 import { playSfx } from '../sound';
 import { alpha, colors, fonts } from '../theme';
 
-export type MenuChoice = 'ranked' | 'lobby';
+export type MenuChoice = 'ranked' | 'lobby' | 'avatar';
 
 const STEPS = [
   { icon: 'dial', title: 'Guess the %', body: 'When it’s your turn, spin the dial to your best guess.' },
@@ -20,9 +25,11 @@ const STEPS = [
 
 export function LandingScreen({ onChoose }: { onChoose: (choice: MenuChoice) => void }) {
   const { height } = useWindowDimensions();
-  const hatSize = Math.min(220, height * 0.26);
+  // Three menu cards now, so the Hat gives up a little height on short phones.
+  const hatSize = Math.min(210, height * 0.22);
+  const { animal, equipped, look, ownedCount, newCount } = useWardrobe();
+  const reduce = useReduceMotion();
   const [burst, setBurst] = useState(0);
-  const [mood, setMood] = useState<HatMood>('wave');
   const [help, setHelp] = useState(false);
   const [board, setBoard] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -32,7 +39,6 @@ export function LandingScreen({ onChoose }: { onChoose: (choice: MenuChoice) => 
     setLeaving(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     playSfx('sparkle');
-    setMood('cast');
     setBurst((n) => n + 1);
     setTimeout(() => onChoose(choice), 550);
   };
@@ -43,14 +49,17 @@ export function LandingScreen({ onChoose }: { onChoose: (choice: MenuChoice) => 
         <Enter from={-10}>
           <RankBadge onPress={() => setBoard(true)} />
         </Enter>
-        <MuteButton />
+        <SoundButton />
       </View>
 
       <View style={{ alignItems: 'center' }}>
         <Enter from={30} scale>
           <View style={{ width: hatSize, height: hatSize }}>
             <SparkleBurst trigger={burst} count={18} radius={hatSize * 0.7} />
-            <HatWizard size={hatSize} mood={mood} onPress={() => playSfx('sparkle')} />
+            <Pressable onPress={() => playSfx('sparkle')} accessibilityRole="imagebutton" accessibilityLabel="The Hat">
+              {/* Hand-drawn loop, keyed off green screen into a transparent animated WebP. */}
+              <Image source={require('../../assets/wizard-menu.webp')} autoplay={!reduce} contentFit="contain" style={{ width: hatSize, height: hatSize }} />
+            </Pressable>
           </View>
         </Enter>
         <Enter delay={180}>
@@ -68,7 +77,7 @@ export function LandingScreen({ onChoose }: { onChoose: (choice: MenuChoice) => 
         </Enter>
       </View>
 
-      <View style={{ gap: 14 }}>
+      <View style={{ gap: 12 }}>
         <Enter delay={340}>
           <MenuCard primary title="Play Ranked" subtitle="Match with 4 rivals · 6 rounds" icon={<TrophyIcon />} onPress={() => choose('ranked')} />
         </Enter>
@@ -76,6 +85,15 @@ export function LandingScreen({ onChoose }: { onChoose: (choice: MenuChoice) => 
           <MenuCard title="Play in Lobby" subtitle="Create a room or join with a code" icon={<UsersIcon />} onPress={() => choose('lobby')} />
         </Enter>
         <Enter delay={540}>
+          <MenuCard
+            title="Avatar"
+            subtitle={`${equipped.id === 'natural' ? animal.name : `${equipped.name} ${animal.name}`} · ${ownedCount}/${SKINS.length} skins`}
+            badge={newCount ? `${newCount} new` : undefined}
+            icon={<AnimalSwatch look={look} size={44} />}
+            onPress={() => choose('avatar')}
+          />
+        </Enter>
+        <Enter delay={640}>
           <Pressable accessibilityRole="button" onPress={() => setHelp(true)} hitSlop={8} style={({ pressed }) => ({ alignSelf: 'center', paddingVertical: 8, paddingHorizontal: 14, opacity: pressed ? 0.6 : 1 })}>
             <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: colors.muted, textDecorationLine: 'underline', textDecorationColor: colors.borderStrong }}>How to play</Text>
           </Pressable>

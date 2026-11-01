@@ -1,80 +1,145 @@
 import * as Haptics from 'expo-haptics';
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
+import { useWardrobe } from '../avatar/store';
 import { Enter, Pop, SparkleBurst } from '../components/Effects';
 import { HatWizard } from '../components/HatWizard';
-import { Avatar, ChevronIcon, GhostButton, MuteButton, RoundButton, styles } from '../components/ui';
+import { Avatar, ChevronIcon, GhostButton, RoundButton, SoundButton, styles } from '../components/ui';
 import { ROSTER, Seat } from '../game/useGame';
 import { native, useAnimatedValue, usePulse, useReduceMotion } from '../motion';
+import { clientId, close, connect, LobbyUpdate, onMessage, send } from '../net/server';
 import { playSfx } from '../sound';
 import { alpha, colors, fonts } from '../theme';
 
-/** How long (ms) after searching starts each rival "connects". Local stand-in for a matchmaking server. */
-const JOIN_AT = [900, 1800, 2700, 3500];
+/** How many seats to draw before the server says how big lobbies are. */
+const SEATS = 5;
+const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-export function MatchmakingScreen({ onMatched, onCancel }: { onMatched: (roster: Seat[]) => void; onCancel: () => void }) {
-  const rivals = ROSTER.slice(1);
-  const [found, setFound] = useState(0);
+type Status = 'connecting' | 'searching' | 'matched' | 'offline';
+
+/** Finds a ranked match on the game server. Once the game starts the socket stays open for it. */
+export function MatchmakingScreen({ onMatched, onCancel }: { onMatched: () => void; onCancel: () => void }) {
+  const { animal, equipped, ladder } = useWardrobe();
+  const [status, setStatus] = useState<Status>('connecting');
+  const [lobby, setLobby] = useState<LobbyUpdate>();
+  const [startsIn, setStartsIn] = useState(0);
   const [elapsed, setElapsed] = useState(0);
-  const matched = found === rivals.length;
+  const [attempt, setAttempt] = useState(0);
+  const handedOff = useRef(false);
+  const profile = useRef({ animal: animal.id, skin: equipped.id, rp: ladder.ratings.you });
+  useEffect(() => {
+    profile.current = { animal: animal.id, skin: equipped.id, rp: ladder.ratings.you };
+  });
 
   useEffect(() => {
-    const timers = JOIN_AT.map((ms, i) =>
-      setTimeout(() => {
-        setFound(i + 1);
-        playSfx('vote');
-        Haptics.selectionAsync();
-      }, ms + Math.random() * 400),
-    );
-    const tick = setInterval(() => setElapsed((s) => s + 1), 1000);
+    let seen = 0;
+    const off = onMessage((msg) => {
+      switch (msg.type) {
+        case 'lobbyUpdate':
+          if (msg.data.players.length > seen) {
+            playSfx('join');
+            Haptics.selectionAsync();
+          }
+          seen = msg.data.players.length;
+          setLobby(msg.data);
+          setStartsIn(msg.data.startsIn);
+          break;
+        case 'game':
+          setStatus('matched');
+          break;
+        case 'closed':
+          setStatus('offline');
+          break;
+      }
+    });
+    connect(async () => {
+      send('findMatch', { clientId: await clientId(), ...profile.current });
+      setStatus('searching');
+    });
+    const tick = setInterval(() => {
+      setElapsed((s) => s + 1);
+      setStartsIn((s) => Math.max(0, s - 1));
+    }, 1000);
     return () => {
-      timers.forEach(clearTimeout);
+      off();
       clearInterval(tick);
+      // Backing out before the game starts leaves matchmaking; the game keeps the socket.
+      if (!handedOff.current) close();
     };
-  }, []);
+  }, [attempt]);
 
+  const matched = status === 'matched';
   useEffect(() => {
     if (!matched) return;
     playSfx('sparkle');
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const t = setTimeout(() => onMatched(ROSTER), 1500);
+    const t = setTimeout(() => {
+      handedOff.current = true;
+      onMatched();
+    }, 1500);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matched]);
 
+  const retry = () => {
+    setStatus('connecting');
+    setLobby(undefined);
+    setElapsed(0);
+    setStartsIn(0);
+    setAttempt((n) => n + 1);
+  };
+  const cancel = () => {
+    send('cancelMatch');
+    onCancel();
+  };
+
+  // Everyone the server has seated so far, you first; before that it's just you.
+  const seats: Seat[] = lobby
+    ? [...lobby.players].sort((a, b) => Number(b.id === lobby.you) - Number(a.id === lobby.you)).map((p) => (p.id === lobby.you ? { ...p, name: ROSTER[0].name, initials: ROSTER[0].initials, isYou: true } : { ...p, isYou: false }))
+    : [ROSTER[0]];
+  const total = lobby?.maxPlayers ?? SEATS;
+
+  const title = matched ? 'Match found!' : status === 'offline' ? 'Can’t reach the server' : 'Finding rivals…';
+  const detail = matched
+    ? 'The Hat is preparing your first riddle'
+    : status === 'offline'
+      ? 'Check the game server is running, then try again'
+      : status === 'connecting'
+        ? 'Connecting…'
+        : startsIn > 0
+          ? `${seats.length} of ${total} in · starting in ${startsIn}s`
+          : `Searching · ${clock(elapsed)} · ${seats.length} of ${total} in`;
+
   return (
     <View style={[styles.screen, { justifyContent: 'space-between' }]}>
       <View style={styles.topBar}>
-        <RoundButton label="Back to menu" onPress={onCancel}>
+        <RoundButton label="Back to menu" onPress={cancel}>
           <ChevronIcon dir="left" size={18} />
         </RoundButton>
         <Text style={[styles.eyebrow, { color: colors.gold }]}>Ranked match</Text>
-        <MuteButton />
+        <SoundButton />
       </View>
 
       <View style={{ alignItems: 'center', gap: 18 }}>
-        <Portal active={!matched}>
+        <Portal active={!matched && status !== 'offline'}>
           <SparkleBurst trigger={matched ? 1 : 0} count={20} radius={150} />
-          <HatWizard size={140} mood={matched ? 'cheer' : 'think'} aura={false} />
+          <HatWizard size={140} mood={matched ? 'cheer' : status === 'offline' ? 'sad' : 'think'} aura={false} />
         </Portal>
 
         <View style={{ alignItems: 'center', gap: 6 }}>
-          <Pop key={matched ? 'found' : 'search'} from={0.8}>
+          <Pop key={status} from={0.8}>
             <Text style={{ fontFamily: fonts.display, fontSize: 32, lineHeight: 38, color: matched ? colors.gold : colors.text, textAlign: 'center' }}>
-              {matched ? 'Match found!' : 'Finding rivals…'}
+              {title}
             </Text>
           </Pop>
-          <Text style={[styles.body, { textAlign: 'center', fontVariant: ['tabular-nums'] }]}>
-            {matched ? 'The Hat is preparing your first riddle' : `Searching · 0:${String(elapsed).padStart(2, '0')} · ${found} of ${rivals.length} found`}
-          </Text>
+          <Text style={[styles.body, { textAlign: 'center', fontVariant: ['tabular-nums'] }]}>{detail}</Text>
         </View>
       </View>
 
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 4 }}>
-        <SeatSlot seat={ROSTER[0]} />
-        {rivals.map((p, i) => (
-          <SeatSlot key={p.id} seat={i < found ? p : undefined} />
+        {Array.from({ length: total }, (_, i) => (
+          <SeatSlot key={seats[i]?.id ?? `empty-${i}`} seat={seats[i]} />
         ))}
       </View>
 
@@ -83,8 +148,10 @@ export function MatchmakingScreen({ onMatched, onCancel }: { onMatched: (roster:
           <View style={{ height: 52, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={[styles.eyebrow, { color: colors.magic }]}>Starting…</Text>
           </View>
+        ) : status === 'offline' ? (
+          <GhostButton label="Try again" onPress={retry} />
         ) : (
-          <GhostButton label="Cancel search" onPress={onCancel} />
+          <GhostButton label="Cancel search" onPress={cancel} />
         )}
       </Enter>
     </View>

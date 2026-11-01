@@ -3,7 +3,7 @@ import { ComponentRef, useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, Share, Text, TextInput, View } from 'react-native';
 import { Enter, Pop, SparkleBurst, ThinkingDots } from '../components/Effects';
 import { HatMood } from '../components/HatWizard';
-import { Avatar, ChevronIcon, Chip, GhostButton, HostBubble, MuteButton, PrimaryButton, RoundButton, SectionHeader, ShareIcon, styles, WandIcon } from '../components/ui';
+import { Avatar, ChevronIcon, Chip, GhostButton, HostBubble, PrimaryButton, RoundButton, SectionHeader, ShareIcon, SoundButton, styles, WandIcon } from '../components/ui';
 import { ROSTER, Seat } from '../game/useGame';
 import { native, useAnimatedValue, usePulse } from '../motion';
 import { playSfx } from '../sound';
@@ -39,7 +39,7 @@ export function LobbyScreen({ code, onStart, onBack }: Props) {
           <ChevronIcon dir="left" size={18} />
         </RoundButton>
         <Text style={[styles.eyebrow, { color: colors.magic }]}>Private lobby</Text>
-        <MuteButton />
+        <SoundButton />
       </View>
 
       <Segmented value={mode} onChange={setMode} />
@@ -106,7 +106,7 @@ function HostRoom({ code, onStart }: { code: string; onStart: (roster: Seat[]) =
       return [
         setTimeout(() => {
           setJoined((j) => [...j, p.id]);
-          playSfx('vote');
+          playSfx('join');
           Haptics.selectionAsync();
         }, at),
         setTimeout(() => setReady((r) => [...r, p.id]), at + 1000 + Math.random() * 1400),
@@ -202,7 +202,7 @@ function JoinRoom({ onStart }: { onStart: (roster: Seat[]) => void }) {
     if (phase !== 'in') return;
     const t = setTimeout(() => {
       setMembers((m) => [...m, 'jordan']);
-      playSfx('vote');
+      playSfx('join');
     }, 1800);
     return () => clearTimeout(t);
   }, [phase]);

@@ -1,12 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSyncExternalStore } from 'react';
-import type { Player } from './types';
 import { ROSTER } from './useGame';
 
 /**
  * The ranked ladder: everyone you play ranked with has a rating (RP), saved on device.
  * Only ranked games move RP; lobby games are just for fun.
- * To go online, replace load/save with the server's ladder and keep the same shapes.
+ * Ranked games are played on the game server, which settles RP and sends back your change.
  */
 
 const LADDER_KEY = 'trivia:ladder';
@@ -95,27 +94,21 @@ export function rpDelta(place: number, of: number) {
 
 export type RankedResult = { before: number; after: number; delta: number; place: number; of: number };
 
-/** Apply a finished ranked match to every player at the table, save, and return your change. */
-export function recordRankedGame(players: Player[]): RankedResult {
-  // Ties share the better place.
-  const placeOf = (p: Player) => 1 + players.filter((o) => o.score > p.score).length;
-  const ratings = { ...ladder.ratings };
-  for (const p of players) ratings[p.id] = Math.max(0, (ratings[p.id] ?? 1000) + rpDelta(placeOf(p), players.length));
-
-  const me = players.find((p) => p.isYou)!;
-  const place = placeOf(me);
-  const before = ladder.ratings.you;
-  const after = ratings.you;
+/**
+ * Save a ranked match the game server settled. The server owns everyone's RP; this keeps your
+ * copy, record and history on device so the menus and wardrobe unlocks work offline.
+ */
+export function recordRankedGame(result: RankedResult, score: number): RankedResult {
   ladder = {
-    ratings,
+    ratings: { ...ladder.ratings, you: result.after },
     played: ladder.played + 1,
-    wins: ladder.wins + (place === 1 ? 1 : 0),
-    best: Math.max(ladder.best, me.score),
-    history: [{ at: Date.now(), place, of: players.length, score: me.score, delta: after - before }, ...ladder.history].slice(0, 20),
+    wins: ladder.wins + (result.place === 1 ? 1 : 0),
+    best: Math.max(ladder.best, score),
+    history: [{ at: Date.now(), place: result.place, of: result.of, score, delta: result.delta }, ...ladder.history].slice(0, 20),
   };
   emit();
   AsyncStorage.setItem(LADDER_KEY, JSON.stringify(ladder)).catch(() => {});
-  return { before, after, delta: after - before, place, of: players.length };
+  return result;
 }
 
 /** Everyone on the ladder, best first, with their 1-based position. */

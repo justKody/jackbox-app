@@ -14,6 +14,9 @@ export type Player = {
   color: string;
   isYou: boolean;
   score: number;
+  /** Online players bring their own animal and skin; local rivals use their built-in looks. */
+  animal?: string;
+  skin?: string;
 };
 
 export type Phase = 'guess' | 'vote' | 'reveal' | 'gameOver';

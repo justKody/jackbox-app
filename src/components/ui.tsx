@@ -3,7 +3,7 @@ import { ReactNode, useEffect, useEffectEvent, useState } from 'react';
 import { Animated, Easing, LayoutChangeEvent, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { native, prefersReducedMotion, useAnimatedValue, usePulse, useReduceMotion } from '../motion';
-import { playSfx, setMuted, useMuted } from '../sound';
+import { playSfx, setSoundPanelOpen, useSoundSettings } from '../sound';
 import { alpha, colors, fonts, radii, shade } from '../theme';
 import { Pop } from './Effects';
 import { HatMood, HatWizard, SparkleShape } from './HatWizard';
@@ -20,7 +20,7 @@ export function TopBar({ round, total, seconds, duration, label }: { round: numb
         <RoundPips round={round} total={total} />
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        <MuteButton />
+        <SoundButton />
         {seconds !== undefined ? (
           <TimerRing seconds={seconds} duration={duration ?? seconds} />
         ) : (
@@ -108,17 +108,19 @@ function TimerRing({ seconds, duration }: { seconds: number; duration: number })
   );
 }
 
-export function MuteButton() {
-  const muted = useMuted();
+/** Top-right speaker: opens the sound panel. Shows crossed out when nothing will play. */
+export function SoundButton() {
+  const { muted, music, effects } = useSoundSettings();
+  const silent = muted || (music === 0 && effects === 0);
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={muted ? 'Unmute sound' : 'Mute sound'}
+      accessibilityLabel={silent ? 'Sound settings, sound off' : 'Sound settings'}
       hitSlop={8}
-      onPress={() => setMuted(!muted)}
+      onPress={() => setSoundPanelOpen(true)}
       style={({ pressed }) => [styles.iconButton, { opacity: pressed ? 0.7 : 1 }]}
     >
-      <SpeakerIcon muted={muted} color={muted ? colors.dim : colors.text} />
+      <SpeakerIcon muted={silent} color={silent ? colors.dim : colors.text} />
     </Pressable>
   );
 }
@@ -146,12 +148,17 @@ export function HostBubble({ mood, children, bubbleKey, look, size = 76 }: { moo
           setOverride('cheer');
         }}
       />
-      <Pop key={bubbleKey} from={0.7} style={{ flex: 1 }}>
-        <View style={styles.bubble}>
-          <View style={styles.bubbleTail} />
-          <Text style={styles.bubbleText}>{children}</Text>
-        </View>
-      </Pop>
+      {/* No line, no bubble: the Hat just watches. */}
+      {children ? (
+        <Pop key={bubbleKey} from={0.7} style={{ flex: 1 }}>
+          <View style={styles.bubble}>
+            <View style={styles.bubbleTail} />
+            <Text style={styles.bubbleText}>{children}</Text>
+          </View>
+        </Pop>
+      ) : (
+        <View style={{ flex: 1 }} />
+      )}
     </View>
   );
 }
@@ -559,9 +566,9 @@ export function CloseIcon({ color = colors.text, size = 18 }: { color?: string; 
   );
 }
 
-function SpeakerIcon({ muted, color }: { muted: boolean; color: string }) {
+export function SpeakerIcon({ muted, color, size = 18 }: { muted: boolean; color: string; size?: number }) {
   return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
       <Path d="M11 5L6 9H3v6h3l5 4V5z" />
       {muted ? (
         <>
