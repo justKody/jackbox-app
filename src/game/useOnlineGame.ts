@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { assetUrl, GameUpdate, latestGame, onMessage, send } from '../net/server';
 import { RankedResult, recordRankedGame } from './rank';
 import type { Call, GameState, Player } from './types';
-import { GameControls, ROSTER } from './useGame';
+import { GameControls, GUESS_SECONDS, ROSTER, VOTE_SECONDS } from './useGame';
 
 /** How often a guesser's dial goes out while they drag it. */
 const DIAL_SEND_MS = 80;
@@ -73,6 +73,8 @@ export function useOnlineGame(onDisconnect: () => void): GameControls & { rank?:
     question,
     voters: state.players.filter((p) => p.id !== guesser.id),
     totalRounds: update!.totalRounds,
+    guessSeconds: update!.guessSeconds ?? GUESS_SECONDS,
+    voteSeconds: update!.voteSeconds ?? VOTE_SECONDS,
     lockGuess: useCallback((guess: number) => send('lockGuess', { guess }), []),
     vote: useCallback(
       (call: Call) => {

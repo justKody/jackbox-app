@@ -2,7 +2,8 @@ import { useEffect } from 'react';
 import { Animated, Easing, ScrollView, Text, View } from 'react-native';
 import Svg, { Defs, Path, RadialGradient, Stop } from 'react-native-svg';
 import { Confetti, Enter, Pop } from '../components/Effects';
-import { HatWizard, SparkleShape } from '../components/HatWizard';
+import { SparkleShape } from '../components/SparkleShape';
+import { WizardPlaceholder } from '../components/WizardPlaceholder';
 import { Avatar, GhostButton, PrimaryButton, SectionHeader, SoundButton, styles, WandIcon } from '../components/ui';
 import { RankEmblem, RankProgress } from '../components/Rank';
 import { ordinal } from '../components/Scoreboard';
@@ -41,7 +42,7 @@ export function GameOverScreen({ players, ranked: rankedMatch, rank, onRestart, 
           </Pop>
           {/* The Hat crowns the champion. */}
           <Enter delay={450} from={-60} style={{ position: 'absolute', top: 4 }}>
-            <HatWizard size={130} mood="cheer" aura={false} />
+            <WizardPlaceholder size={130} mood="cheer" />
           </Enter>
         </View>
         <Enter delay={250}>

@@ -5,7 +5,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { native, useAnimatedValue } from '../motion';
 import { playSfx, setEffectsVolume, setMusicVolume, setMuted, useSoundSettings } from '../sound';
 import { alpha, colors, fonts } from '../theme';
-import { SparkleShape } from './HatWizard';
+import { SparkleShape } from './SparkleShape';
 import { Sheet } from './Sheet';
 import { setSoundPanelOpen, useSoundPanelOpen } from './soundPanel';
 import { SpeakerIcon, styles } from './ui';

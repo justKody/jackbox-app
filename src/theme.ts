@@ -49,6 +49,7 @@ export const colors = {
   okBg: '#22351F',
   okText: '#B6EC8E',
   danger: '#FF6B86',
+  red: '#E8434F', // leave / forfeit buttons
   dangerBg: '#3E1A2C',
 
   // Legacy alias used by the dial & a few highlights

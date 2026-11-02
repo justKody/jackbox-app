@@ -6,7 +6,8 @@ import { AnimalSwatch } from '../avatar/AnimalSwatch';
 import { useWardrobe } from '../avatar/store';
 import { SKINS } from '../avatar/skins';
 import { Enter, SparkleBurst } from '../components/Effects';
-import { HatWizard, SparkleShape } from '../components/HatWizard';
+import { SparkleShape } from '../components/SparkleShape';
+import { WizardPlaceholder } from '../components/WizardPlaceholder';
 import { RankBadge } from '../components/Rank';
 import { ScoreboardSheet } from '../components/Scoreboard';
 import { Sheet } from '../components/Sheet';
@@ -109,7 +110,7 @@ export function LandingScreen({ onChoose }: { onChoose: (choice: MenuChoice) => 
 /** The three rules, in the shared bottom sheet. */
 function HowToSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   return (
-    <Sheet visible={visible} onClose={onClose} title="How to play" icon={<HatWizard size={48} mood="idle" aura={false} />}>
+    <Sheet visible={visible} onClose={onClose} title="How to play" icon={<WizardPlaceholder size={48} mood="idle" />}>
       {STEPS.map((s, i) => (
         <View key={s.title} style={[styles.row, { paddingVertical: 12, gap: 14, alignItems: 'flex-start' }]}>
           <View style={{ width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: alpha(colors.magic, 0.12), borderWidth: 1, borderColor: alpha(colors.magic, 0.3) }}>

@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useMemo } from 'react';
 import { Animated, Easing, StyleSheet, useWindowDimensions, View, ViewStyle } from 'react-native';
 import { native, prefersReducedMotion, seeded, useAnimatedValue, useEntrance, usePulse } from '../motion';
 import { colors } from '../theme';
-import { SparkleShape } from './HatWizard';
+import { SparkleShape } from './SparkleShape';
 
 const BURST_COLORS = [colors.gold, colors.magic, '#FFFFFF', colors.aura];
 

@@ -1,17 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 
 /**
  * Counts down from `seconds` while `active`. Restarts whenever `resetKey` changes.
- * Calls `onExpire` once when it hits zero.
+ * Calls `onExpire` once when it hits zero, always the latest one passed in.
  */
 export function useCountdown(seconds: number, resetKey: unknown, active: boolean, onExpire: () => void) {
   const [left, setLeft] = useState(seconds);
-  const expireRef = useRef(onExpire);
-  expireRef.current = onExpire;
+  const expire = useEffectEvent(onExpire);
 
-  useEffect(() => {
+  // A new round (or length) starts the clock over, in the same render rather than one late.
+  const [clock, setClock] = useState({ seconds, resetKey });
+  if (clock.seconds !== seconds || clock.resetKey !== resetKey) {
+    setClock({ seconds, resetKey });
     setLeft(seconds);
-  }, [seconds, resetKey]);
+  }
 
   useEffect(() => {
     if (!active) return;
@@ -24,7 +26,7 @@ export function useCountdown(seconds: number, resetKey: unknown, active: boolean
       if (next === 0 && !fired) {
         fired = true;
         clearInterval(id);
-        expireRef.current();
+        expire();
       }
     }, 250);
     return () => clearInterval(id);

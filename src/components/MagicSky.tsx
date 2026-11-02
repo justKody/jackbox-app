@@ -3,7 +3,7 @@ import { Animated, Easing, StyleSheet, useWindowDimensions, View } from 'react-n
 import Svg, { Circle, Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { native, seeded, useAnimatedValue, useReduceMotion } from '../motion';
 import { colors } from '../theme';
-import { SparkleShape } from './HatWizard';
+import { SparkleShape } from './SparkleShape';
 
 /**
  * The living night sky behind every screen: a deep gradient, two drifting nebulae,

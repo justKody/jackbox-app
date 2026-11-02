@@ -17,14 +17,22 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.88.0",
+    "react-native-filament": "^1.11.0",
     "react-native-safe-area-context": "~5.10.1",
     "react-native-svg": "15.16.0",
     "react-native-web": "^0.21.4",
+    "react-native-worklets-core": "^1.6.3",
     "three": "^0.186.1"
   },
   "devDependencies": {
+    "@babel/plugin-proposal-nullish-coalescing-operator": "^7.18.6",
+    "@babel/plugin-proposal-optional-chaining": "^7.21.0",
+    "@babel/plugin-transform-arrow-functions": "^7.29.7",
+    "@babel/plugin-transform-shorthand-properties": "^7.29.7",
+    "@babel/plugin-transform-template-literals": "^7.29.7",
     "@types/react": "~19.3.0",
     "@types/three": "^0.186.0",
+    "babel-preset-expo": "~58.0.0",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~58.0.4",
     "typescript": "~6.0.3"
@@ -34,7 +42,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "avatar:assets": "node --no-warnings --experimental-transform-types --import ./scripts/avatar-assets/register.mjs scripts/avatar-assets/build.ts"
   },
   "private": true
 }

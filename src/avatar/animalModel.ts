@@ -1,6 +1,7 @@
 import * as THREE from 'three';
+import { type Mood, type Pose, POSES } from './poses';
 import type { Look, Species } from './skins';
-import { LookTextures, makeLookTextures } from './textures';
+import { type LookTextures, makeLookTextures } from './textures';
 
 /**
  * A chibi animal built from code: big head, round body, stubby paws and a knitted scarf,
@@ -8,21 +9,12 @@ import { LookTextures, makeLookTextures } from './textures';
  *
  * `mood` drives a small pose rig (paws, head, ears, bounce) that eases between states,
  * so the game can say "cheer" or "sad" and the character gets there smoothly.
+ *
+ * Draws the web build; native renders the same model through Filament from the assets
+ * `npm run avatar:assets` bakes out of this file, so keep the two in step.
  */
 
-export type Mood = 'idle' | 'think' | 'ready' | 'cheer' | 'sad' | 'wave' | 'happy';
-
-type Pose = { armL: number; armR: number; wave: number; tilt: number; nod: number; bounce: number; hz: number; droop: number; squint: number; sink: number; mouth: number };
-
-const POSES: Record<Mood, Pose> = {
-  idle: { armL: 0.14, armR: 0.14, wave: 0, tilt: 0, nod: 0, bounce: 0.014, hz: 1.6, droop: 0, squint: 0, sink: 0, mouth: 0 },
-  think: { armL: 0.1, armR: 1.35, wave: 0, tilt: 0.22, nod: -0.12, bounce: 0.008, hz: 1.1, droop: 0.15, squint: 0.15, sink: 0, mouth: 0 },
-  ready: { armL: 0.18, armR: 0.75, wave: 0, tilt: -0.06, nod: 0.06, bounce: 0.022, hz: 2.2, droop: 0, squint: 0.35, sink: 0, mouth: 0.4 },
-  happy: { armL: 0.6, armR: 0.6, wave: 0, tilt: 0.05, nod: -0.05, bounce: 0.05, hz: 2.2, droop: 0, squint: 0.8, sink: 0, mouth: 0.8 },
-  cheer: { armL: 2.55, armR: 2.55, wave: 0, tilt: 0, nod: -0.12, bounce: 0.17, hz: 2.6, droop: 0, squint: 1, sink: 0, mouth: 1 },
-  sad: { armL: -0.04, armR: -0.04, wave: 0, tilt: -0.1, nod: 0.34, bounce: 0.004, hz: 0.8, droop: 1, squint: 0, sink: 0.035, mouth: -0.6 },
-  wave: { armL: 0.14, armR: 2.3, wave: 1, tilt: 0.12, nod: -0.04, bounce: 0.02, hz: 2, droop: 0, squint: 0.55, sink: 0, mouth: 0.6 },
-};
+export type { Mood };
 
 const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 const NECK_Y = 0.84;
@@ -88,6 +80,15 @@ export class AnimalModel {
       white: new THREE.MeshBasicMaterial({ color: '#FFFFFF', toneMapped: false }),
       socket: std({ color: '#120E1E', roughness: 0.3 }),
     };
+    // Named so the Filament asset build can find the pose rig's joints and materials.
+    this.root.name = 'animal';
+    this.body.name = 'body';
+    this.head.name = 'head';
+    this.armL.name = 'armL';
+    this.armR.name = 'armR';
+    this.tail.name = 'tail';
+    this.mouth.name = 'mouth';
+    for (const [name, mat] of Object.entries(this.mats)) mat.name = name;
     this.root.add(this.body);
     this.buildBody();
     this.buildHead();
@@ -182,6 +183,8 @@ export class AnimalModel {
       this.mesh(new THREE.CircleGeometry(0.011 * s, 10), white, look, v(0.028 * s, -0.032 * s, 0.002));
       blink.add(look);
       mount.add(blink);
+      blink.name = `blink${this.eyes.length}`;
+      look.name = `look${this.eyes.length}`;
       this.eyes.push({ blink, look });
 
       // Blush
@@ -197,6 +200,7 @@ export class AnimalModel {
       g.position.copy(this.onHead(yaw, pitch, -0.04).pos);
       g.rotation.z = -side * tilt;
       build(g);
+      g.name = `ear${this.ears.length}`;
       this.head.add(g);
       this.ears.push({ group: g, side });
     };

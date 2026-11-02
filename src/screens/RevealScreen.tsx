@@ -1,14 +1,13 @@
 import * as Haptics from 'expo-haptics';
-import { useEffect, useState } from 'react';
-import { Animated, Easing, Text, useWindowDimensions, View } from 'react-native';
-import { Confetti, Enter, Pop, SparkleBurst } from '../components/Effects';
-import { HatMood } from '../components/HatWizard';
-import { ArrowIcon, HostBubble, PrimaryButton, styles, TopBar } from '../components/ui';
+import { useEffect, useEffectEvent, useState } from 'react';
+import { Animated, Easing, Text, View } from 'react-native';
+import { Confetti, SparkleBurst } from '../components/Effects';
+import { HostQuestion, styles, TopBar } from '../components/ui';
 import { correctCall } from '../game/scoring';
 import type { Player, Question, RoundResult } from '../game/types';
 import { native, prefersReducedMotion, useAnimatedValue, useCountUp } from '../motion';
 import { playSfx } from '../sound';
-import { alpha, colors, fonts } from '../theme';
+import { colors, fonts } from '../theme';
 
 type Props = {
   question: Question;
@@ -17,16 +16,19 @@ type Props = {
   guesser: Player;
   guess: number;
   results: RoundResult[];
-  isLastRound: boolean;
+  /** Moves on to the standings, which show everyone's points for the round. */
   onNext: () => void;
 };
 
 export const SUSPENSE_MS = 1400;
+/**
+ * How long the answer and verdict stay up before the standings open on their own. Online, the
+ * server ends the reveal 15s after it starts, so this leaves the standings most of that.
+ */
+const ANSWER_MS = 2500;
 
-export function RevealScreen({ question, round, total, guesser, guess, results, isLastRound, onNext }: Props) {
+export function RevealScreen({ question, round, total, guesser, guess, results, onNext }: Props) {
   const answer = question.answer;
-  // Short phones share the screen with the player table, so the big number gives way.
-  const compact = useWindowDimensions().height < 760;
   const right = correctCall(guess, answer);
   const off = Math.abs(guess - answer);
   const me = results.find((r) => r.playerId === 'you');
@@ -52,33 +54,18 @@ export function RevealScreen({ question, round, total, guesser, guess, results, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revealed]);
 
+  // Once everyone has seen the answer, the standings follow by themselves with the round's points.
+  const showStandings = useEffectEvent(onNext);
+  useEffect(() => {
+    if (!revealed) return;
+    const t = setTimeout(showStandings, ANSWER_MS);
+    return () => clearTimeout(t);
+  }, [revealed]);
+
   const bullseye = right === null;
-  const bannerColor = right === 'higher' ? colors.higher : right === 'lower' ? colors.lower : colors.gold;
-  const bannerInk = right === 'higher' ? colors.higherInk : right === 'lower' ? colors.lowerInk : colors.ink;
-  const who = guesser.isYou ? 'You were' : `${guesser.name} was`;
-  const bannerText = bullseye
-    ? `Bullseye! ${guesser.isYou ? 'You' : guesser.name} nailed it`
-    : `${right === 'higher' ? 'Higher' : 'Lower'} was right · ${who} off by ${off}`;
+  const verdict = bullseye ? `Bullseye! ${guesser.isYou ? 'You' : guesser.name} nailed it` : `${right === 'higher' ? 'Higher' : 'Lower'} it was!`;
 
-  let mood: HatMood = 'think';
-  let line = 'And the answer is…';
-  if (revealed) {
-    if (guesser.isYou) {
-      mood = bullseye ? 'cheer' : (me?.points ?? 0) >= 80 ? 'happy' : (me?.points ?? 0) > 0 ? 'idle' : 'sad';
-      line = bullseye ? 'A perfect bullseye! Pure wizardry. +150!' : `Off by ${off} — that’s +${me?.points ?? 0} for you.`;
-    } else if (!me || me.label === 'No call') {
-      mood = 'sad';
-      line = 'You didn’t make a call this time…';
-    } else if (me.correct) {
-      mood = 'cheer';
-      line = `Spot on! ${right === 'higher' ? 'Higher' : 'Lower'} it was. +${me.points}!`;
-    } else {
-      mood = 'sad';
-      line = bullseye ? 'A bullseye — nobody wins the call!' : 'Ooh, not this time. The next one’s yours!';
-    }
-  }
-
-  // Only celebrate when the Hat does: bullseyes, right calls, or a really close guess.
+  // Only celebrate a bullseye, your right call, or your really close guess.
   const celebrate = revealed && (bullseye || (!!me?.correct && (!guesser.isYou || me.points >= 80)));
 
   const lo = Math.min(guess, answer);
@@ -89,36 +76,36 @@ export function RevealScreen({ question, round, total, guesser, guess, results, 
       {celebrate ? <Confetti count={bullseye ? 44 : 26} /> : null}
       <TopBar round={round} total={total} label="Reveal" />
 
-      <HostBubble mood={mood} bubbleKey={line} size={compact ? 62 : 78}>
-        {line}
-      </HostBubble>
+      {/* You watched it being written already; here it's just a reminder. */}
+      <HostQuestion text={question.text} compact animate={false} />
 
-      <Text style={{ fontFamily: fonts.serifItalic, fontSize: 16, lineHeight: 21, color: colors.muted, textAlign: 'center' }}>{question.text}</Text>
-
+      {/* The answer and scale sit centred in the space below the question. */}
+      <View style={{ flex: 1 }} />
       <View style={{ alignItems: 'center' }}>
-        <Text style={styles.eyebrow}>The answer is</Text>
+        <Text style={styles.eyebrow}>The answer</Text>
         <View>
           <SparkleBurst trigger={celebrate ? 1 : 0} count={18} radius={120} />
           <Animated.View style={[styles.bigNumberRow, { transform: [{ scale: pop }] }]}>
-            <Text style={[styles.bigNumber, { fontSize: compact ? 72 : 100, lineHeight: compact ? 78 : 108, color: revealed ? colors.gold : colors.text }]}>{shown}</Text>
-            <Text style={[styles.bigNumber, { fontSize: compact ? 32 : 44, color: revealed ? colors.gold : colors.text }]}>%</Text>
+            <Text style={[styles.bigNumber, { fontSize: 100, lineHeight: 108, color: revealed ? colors.magic : colors.text }]}>{shown}</Text>
+            <Text style={[styles.bigNumber, { fontSize: 44, color: revealed ? colors.magic : colors.text }]}>%</Text>
           </Animated.View>
         </View>
+        <Text style={{ fontFamily: fonts.serifItalic, fontSize: 18, color: colors.gold, opacity: revealed ? 1 : 0 }}>{verdict}</Text>
       </View>
 
-      {/* 0–100 scale: gold tick = answer, white pin = guess, coloured span = the gap */}
+      {/* 0–100 scale: gold pin = guess, cyan tick = answer, gold span = the gap */}
       <View style={{ gap: 6, paddingHorizontal: 4 }}>
         <View style={{ height: 56 }}>
-          <View style={{ position: 'absolute', left: 0, right: 0, top: 30, height: 10, borderRadius: 999, backgroundColor: colors.track }} />
+          <View style={{ position: 'absolute', left: 0, right: 0, top: 30, height: 8, borderRadius: 999, backgroundColor: colors.track }} />
           <Animated.View
             style={{
               position: 'absolute',
               left: `${lo}%`,
               width: `${off}%`,
               top: 30,
-              height: 10,
-              borderRadius: 5,
-              backgroundColor: bannerColor,
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: colors.gold,
               transformOrigin: growRight ? 'left' : 'right',
               transform: [{ scaleX: bar }],
             }}
@@ -129,24 +116,22 @@ export function RevealScreen({ question, round, total, guesser, guess, results, 
               left: `${answer}%`,
               top: 20,
               width: 6,
-              height: 30,
+              height: 28,
               marginLeft: -3,
               borderRadius: 3,
-              backgroundColor: colors.gold,
-              shadowColor: colors.gold,
+              backgroundColor: colors.magic,
+              shadowColor: colors.magic,
               shadowOpacity: 0.9,
               shadowRadius: 8,
               opacity: bar,
               transform: [{ scaleY: bar }],
             }}
           />
-          <View style={{ position: 'absolute', left: `${guess}%`, top: 0, width: 56, marginLeft: -28, alignItems: 'center', gap: 2 }}>
-            <View style={{ paddingHorizontal: 7, height: 22, borderRadius: 8, backgroundColor: colors.text, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontFamily: fonts.bold, fontSize: 11, color: colors.ink }}>
-                {guesser.initials} {guess}
-              </Text>
+          <View style={{ position: 'absolute', left: `${guess}%`, top: 0, width: 80, marginLeft: -40, alignItems: 'center', gap: 2 }}>
+            <View style={{ paddingHorizontal: 7, height: 22, borderRadius: 8, backgroundColor: colors.gold, alignItems: 'center', justifyContent: 'center' }}>
+              <Text numberOfLines={1} style={{ fontFamily: fonts.bold, fontSize: 11, color: colors.ink }}>Guess {guess}</Text>
             </View>
-            <View style={{ width: 2, height: 18, backgroundColor: colors.text }} />
+            <View style={{ width: 2, height: 16, backgroundColor: colors.gold }} />
           </View>
         </View>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -158,25 +143,7 @@ export function RevealScreen({ question, round, total, guesser, guess, results, 
         </View>
       </View>
 
-      {revealed ? (
-        <>
-          <Pop from={0.8}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 14, borderRadius: 16, backgroundColor: bannerColor, borderBottomWidth: 4, borderBottomColor: alpha('#000000', 0.25) }}>
-              {right && <ArrowIcon dir={right === 'higher' ? 'up' : 'down'} color={bannerInk} size={22} />}
-              <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: bannerInk, flexShrink: 1 }}>{bannerText}</Text>
-            </View>
-          </Pop>
-
-          {/* Everyone's points for the round show on the player table below. */}
-          <View style={{ flex: 1 }} />
-
-          <Enter delay={500}>
-            <PrimaryButton label={isLastRound ? 'See final scores' : 'Next question'} onPress={onNext} height={56} />
-          </Enter>
-        </>
-      ) : (
-        <View style={{ flex: 1 }} />
-      )}
+      <View style={{ flex: 1 }} />
     </View>
   );
 }

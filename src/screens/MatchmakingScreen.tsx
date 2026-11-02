@@ -1,10 +1,11 @@
 import * as Haptics from 'expo-haptics';
+import { Image } from 'expo-image';
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { useWardrobe } from '../avatar/store';
 import { Enter, Pop, SparkleBurst } from '../components/Effects';
-import { HatWizard } from '../components/HatWizard';
+import { WizardPlaceholder } from '../components/WizardPlaceholder';
 import { Avatar, ChevronIcon, GhostButton, RoundButton, SoundButton, styles } from '../components/ui';
 import { ROSTER, Seat } from '../game/useGame';
 import { native, useAnimatedValue, usePulse, useReduceMotion } from '../motion';
@@ -13,7 +14,7 @@ import { playSfx } from '../sound';
 import { alpha, colors, fonts } from '../theme';
 
 /** How many seats to draw before the server says how big lobbies are. */
-const SEATS = 5;
+const SEATS = 6;
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 type Status = 'connecting' | 'searching' | 'matched' | 'offline';
@@ -27,6 +28,7 @@ export function MatchmakingScreen({ onMatched, onCancel }: { onMatched: () => vo
   const [elapsed, setElapsed] = useState(0);
   const [attempt, setAttempt] = useState(0);
   const handedOff = useRef(false);
+  const reduce = useReduceMotion();
   const profile = useRef({ animal: animal.id, skin: equipped.id, rp: ladder.ratings.you });
   useEffect(() => {
     profile.current = { animal: animal.id, skin: equipped.id, rp: ladder.ratings.you };
@@ -124,7 +126,11 @@ export function MatchmakingScreen({ onMatched, onCancel }: { onMatched: () => vo
       <View style={{ alignItems: 'center', gap: 18 }}>
         <Portal active={!matched && status !== 'offline'}>
           <SparkleBurst trigger={matched ? 1 : 0} count={20} radius={150} />
-          <HatWizard size={140} mood={matched ? 'cheer' : status === 'offline' ? 'sad' : 'think'} aura={false} />
+          {status === 'offline' ? (
+            <WizardPlaceholder size={140} mood="sad" />
+          ) : (
+            <Image source={require('../../assets/wizard-matchmaking.webp')} autoplay={!reduce} contentFit="contain" style={{ width: 200, height: 200 }} />
+          )}
         </Portal>
 
         <View style={{ alignItems: 'center', gap: 6 }}>
@@ -215,17 +221,17 @@ function Ping({ delay, size }: { delay: number; size: number }) {
 function SeatSlot({ seat }: { seat?: Seat }) {
   const pulse = usePulse(1400, !seat);
   return (
-    <View style={{ alignItems: 'center', gap: 6, width: 62 }}>
+    <View style={{ alignItems: 'center', gap: 6, width: 52 }}>
       {seat ? (
         <Pop from={0.3}>
-          <Avatar initials={seat.initials} color={seat.color} size={54} ring={seat.isYou ? colors.magic : colors.bg} />
+          <Avatar initials={seat.initials} color={seat.color} size={46} ring={seat.isYou ? colors.magic : colors.bg} />
         </Pop>
       ) : (
         <Animated.View
           style={{
-            width: 54,
-            height: 54,
-            borderRadius: 27,
+            width: 46,
+            height: 46,
+            borderRadius: 23,
             borderWidth: 2,
             borderStyle: 'dashed',
             borderColor: colors.borderStrong,

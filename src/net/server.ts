@@ -45,6 +45,9 @@ export type GameUpdate = {
   guess: number | null;
   /** Where the guesser's dial sits while they're still guessing. */
   dial: number;
+  /** How long the guess and vote phases last; the server's clock is the one that counts. Missing from older servers. */
+  guessSeconds?: number;
+  voteSeconds?: number;
   /** Who has locked in a call; the calls themselves only arrive with the reveal. */
   locked: string[];
   votes?: Record<string, Call>;

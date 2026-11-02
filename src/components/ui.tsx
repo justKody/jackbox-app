@@ -1,111 +1,77 @@
-import * as Haptics from 'expo-haptics';
-import { ReactNode, useEffect, useEffectEvent, useState } from 'react';
+import { Image } from 'expo-image';
+import { createContext, ReactNode, useContext, useEffect, useEffectEvent, useState } from 'react';
 import { Animated, Easing, LayoutChangeEvent, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
-import { native, prefersReducedMotion, useAnimatedValue, usePulse, useReduceMotion } from '../motion';
+import { native, prefersReducedMotion, useAnimatedValue, useReduceMotion } from '../motion';
 import { playSfx, useSoundSettings } from '../sound';
 import { alpha, colors, fonts, radii, shade } from '../theme';
 import { Pop } from './Effects';
-import { HatMood, HatWizard, SparkleShape } from './HatWizard';
+import { SparkleShape } from './SparkleShape';
+import { HatMood, WizardPlaceholder } from './WizardPlaceholder';
 import { setSoundPanelOpen } from './soundPanel';
 
 // ─── Top bar ────────────────────────────────────────────────────────────────
 
+/** Asks to leave the running game; the game screen provides it so the top bar can show an exit button. */
+export const ExitGameContext = createContext<(() => void) | null>(null);
+
+/**
+ * Exit, the round with its countdown bar, and sound. `label` names the phase after the round
+ * ("Call it", "Reveal"); without `seconds` the round sits centred with no bar.
+ */
 export function TopBar({ round, total, seconds, duration, label }: { round: number; total: number; seconds?: number; duration?: number; label?: string }) {
+  const askExit = useContext(ExitGameContext);
+  const urgent = seconds !== undefined && seconds <= 5;
+  const title = `Round ${round} of ${total}${label ? ` · ${label}` : ''}`;
   return (
-    <View style={styles.topBar}>
-      <View style={{ gap: 6 }}>
-        <Text style={styles.eyebrow}>
-          Round {round} <Text style={{ color: colors.dim }}>of {total}</Text>
-        </Text>
-        <RoundPips round={round} total={total} />
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        <SoundButton />
-        {seconds !== undefined ? (
-          <TimerRing seconds={seconds} duration={duration ?? seconds} />
-        ) : (
-          <View style={styles.pill}>
-            <SparkleShape size={11} color={colors.gold} />
-            <Text style={[styles.pillText, { fontSize: 13 }]}>{label}</Text>
+    <View style={[styles.topBar, { gap: 12 }]}>
+      {askExit ? <ExitButton onPress={askExit} /> : <View style={{ width: 40 }} />}
+      {seconds !== undefined ? (
+        <View style={{ flex: 1, gap: 6 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <Text style={styles.eyebrow}>{title}</Text>
+            <Text accessibilityLabel={`${seconds} seconds left`} style={{ fontFamily: fonts.number, fontSize: 20, color: urgent ? colors.danger : colors.magic, fontVariant: ['tabular-nums'] }}>
+              0:{String(seconds).padStart(2, '0')}
+            </Text>
           </View>
-        )}
-      </View>
+          <TimerBar seconds={seconds} duration={duration ?? seconds} />
+        </View>
+      ) : (
+        <Text style={[styles.eyebrow, { flex: 1, textAlign: 'center' }]}>{title}</Text>
+      )}
+      <SoundButton />
     </View>
   );
 }
 
-/** One little star per round: gold when done, glowing for the current one. */
-function RoundPips({ round, total }: { round: number; total: number }) {
-  const glow = usePulse(1600);
-  return (
-    <View style={{ flexDirection: 'row', gap: 5, alignItems: 'center' }}>
-      {Array.from({ length: total }, (_, i) => {
-        const n = i + 1;
-        if (n === round)
-          return (
-            <Animated.View key={i} style={{ transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1.25] }) }] }}>
-              <SparkleShape size={14} color={colors.magic} />
-            </Animated.View>
-          );
-        return n < round ? (
-          <SparkleShape key={i} size={11} color={colors.gold} />
-        ) : (
-          <View key={i} style={{ width: 11, height: 11, alignItems: 'center', justifyContent: 'center' }}>
-            <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: colors.tickOff }} />
-          </View>
-        );
-      })}
-    </View>
-  );
-}
-
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-
-/** Countdown ring that drains smoothly between whole-second ticks. */
-function TimerRing({ seconds, duration }: { seconds: number; duration: number }) {
-  const size = 46;
-  const r = 19;
-  const C = 2 * Math.PI * r;
+/** Countdown bar that drains smoothly between whole-second ticks, red for the last five. */
+function TimerBar({ seconds, duration }: { seconds: number; duration: number }) {
   const progress = useAnimatedValue(seconds / duration);
   const urgent = seconds <= 5;
-  const beat = usePulse(500, urgent);
 
   useEffect(() => {
-    Animated.timing(progress, {
+    const a = Animated.timing(progress, {
       toValue: Math.max(0, (seconds - 1) / duration),
       duration: seconds > 0 ? 1000 : 0,
       easing: Easing.linear,
-      useNativeDriver: false,
-    }).start();
+      useNativeDriver: native,
+    });
+    a.start();
+    return () => a.stop();
   }, [seconds, duration, progress]);
 
-  const color = urgent ? colors.danger : colors.magic;
   return (
-    <Animated.View
-      accessible
-      accessibilityLabel={`${seconds} seconds left`}
-      style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center', transform: [{ scale: beat.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] }) }] }}
-    >
-      <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
-        <Circle cx={size / 2} cy={size / 2} r={r + 3} fill={urgent ? colors.dangerBg : colors.surface} />
-        <Circle cx={size / 2} cy={size / 2} r={r} stroke={colors.track} strokeWidth={3.5} fill="none" />
-        <AnimatedCircle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          stroke={color}
-          strokeWidth={3.5}
-          strokeLinecap="round"
-          fill="none"
-          strokeDasharray={`${C} ${C}`}
-          strokeDashoffset={progress.interpolate({ inputRange: [0, 1], outputRange: [C, 0] })}
-          rotation={-90}
-          origin={`${size / 2}, ${size / 2}`}
-        />
-      </Svg>
-      <Text style={[styles.pillText, { color: urgent ? colors.danger : colors.text, fontSize: 15 }]}>{seconds}</Text>
-    </Animated.View>
+    <View style={{ height: 8, borderRadius: radii.pill, backgroundColor: colors.track, overflow: 'hidden' }}>
+      <Animated.View
+        style={{
+          height: 8,
+          borderRadius: radii.pill,
+          backgroundColor: urgent ? colors.danger : colors.magic,
+          transformOrigin: 'left',
+          transform: [{ scaleX: progress }],
+        }}
+      />
+    </View>
   );
 }
 
@@ -128,27 +94,11 @@ export function SoundButton() {
 
 // ─── The Hat as host ────────────────────────────────────────────────────────
 
-/** The Hat with a speech bubble — it narrates each phase. Tap the Hat for a little cheer. */
-export function HostBubble({ mood, children, bubbleKey, look, size = 76 }: { mood: HatMood; children: ReactNode; bubbleKey: string; look?: { x: number; y: number }; size?: number }) {
-  const [override, setOverride] = useState<HatMood | null>(null);
-  useEffect(() => {
-    if (!override) return;
-    const t = setTimeout(() => setOverride(null), 1300);
-    return () => clearTimeout(t);
-  }, [override]);
-
+/** The Hat with a speech bubble — it narrates each phase. */
+export function HostBubble({ mood, children, bubbleKey, size = 76 }: { mood: HatMood; children: ReactNode; bubbleKey: string; size?: number }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-      <HatWizard
-        size={size}
-        mood={override ?? mood}
-        look={override ? undefined : look}
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          playSfx('sparkle');
-          setOverride('cheer');
-        }}
-      />
+      <WizardPlaceholder size={size} mood={mood} />
       {/* No line, no bubble: the Hat just watches. */}
       {children ? (
         <Pop key={bubbleKey} from={0.7} style={{ flex: 1 }}>
@@ -169,22 +119,90 @@ export function HostBubble({ mood, children, bubbleKey, look, size = 76 }: { moo
 const TYPE_MS = 30;
 const PAUSE_MS = 200;
 
+/** How long the Hat takes to hop in beside the question; the balloon pops just as it lands. */
+const HOP_MS = 520;
+
 /**
- * The question, written onto a parchment scroll that unrolls from its centre.
+ * The Hat hops in from the left beside the question, which it says in a parchment speech balloon.
+ * Without `animate` (or with reduced motion) both are simply there.
+ */
+export function HostQuestion({ text, compact = false, animate = true, onWritingChange }: { text: string; compact?: boolean; animate?: boolean; onWritingChange?: (writing: boolean) => void }) {
+  const reduce = useReduceMotion();
+  const run = animate && !reduce;
+  const hop = useAnimatedValue(run ? 0 : 1);
+  // The art has a wide glow around the wizard, so the box runs a little bigger than it looks.
+  const size = compact ? 68 : 84;
+
+  useEffect(() => {
+    if (!run) return;
+    const a = Animated.timing(hop, { toValue: 1, duration: HOP_MS, easing: Easing.out(Easing.quad), useNativeDriver: native });
+    a.start();
+    return () => a.stop();
+  }, [run, hop]);
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+      {/* An arc up out of the left edge, a squash on landing, then it settles. */}
+      <Animated.View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={{
+          width: size,
+          height: size,
+          transformOrigin: 'bottom',
+          transform: [
+            { translateX: hop.interpolate({ inputRange: [0, 1], outputRange: [-size * 1.5, 0] }) },
+            { translateY: hop.interpolate({ inputRange: [0, 0.55, 0.8, 1], outputRange: [size * 0.3, -size * 0.45, 0, 0] }) },
+            { rotate: hop.interpolate({ inputRange: [0, 0.55, 1], outputRange: ['-14deg', '-6deg', '0deg'] }) },
+            { scaleX: hop.interpolate({ inputRange: [0, 0.8, 0.9, 1], outputRange: [1, 0.94, 1.12, 1] }) },
+            { scaleY: hop.interpolate({ inputRange: [0, 0.8, 0.9, 1], outputRange: [1, 1.08, 0.88, 1] }) },
+          ],
+        }}
+      >
+        <Image source={require('../../assets/wizard-host.webp')} contentFit="contain" style={{ width: size, height: size }} />
+      </Animated.View>
+      <View style={{ flex: 1 }}>
+        <QuestionCard text={text} compact={compact} animate={animate} balloon delay={run ? HOP_MS - 80 : 0} onWritingChange={onWritingChange} />
+      </View>
+    </View>
+  );
+}
+
+/**
+ * The question, written onto a parchment scroll that unrolls from its centre, or (`balloon`) a
+ * parchment speech balloon that pops from its tail after `delay`.
  * `onWritingChange` lets the screen sync the Hat's spell-casting to the typing.
  */
-export function QuestionCard({ text, compact = false, animate = true, onWritingChange }: { text: string; compact?: boolean; animate?: boolean; onWritingChange?: (writing: boolean) => void }) {
+export function QuestionCard({
+  text,
+  compact = false,
+  animate = true,
+  balloon = false,
+  delay = 0,
+  onWritingChange,
+}: {
+  text: string;
+  compact?: boolean;
+  animate?: boolean;
+  balloon?: boolean;
+  delay?: number;
+  onWritingChange?: (writing: boolean) => void;
+}) {
   const reduce = useReduceMotion();
   const run = animate && !reduce;
   const [h, setH] = useState(0);
   const [ready, setReady] = useState(!run);
   const [shown, setShown] = useState(run ? 0 : text.length);
   const unroll = useAnimatedValue(run ? 0 : 1);
+  // The scroll waits for its height to unroll from the middle; the balloon only needs to be there.
+  const go = balloon || h > 0;
 
   useEffect(() => {
-    if (!run || !h) return;
-    Animated.timing(unroll, { toValue: 1, duration: 520, easing: Easing.out(Easing.back(1.2)), useNativeDriver: native }).start(() => setReady(true));
-  }, [run, h, unroll]);
+    if (!run || !go) return;
+    const a = Animated.timing(unroll, { toValue: 1, duration: balloon ? 380 : 520, delay, easing: Easing.out(Easing.back(balloon ? 1.8 : 1.2)), useNativeDriver: native });
+    a.start(({ finished }) => finished && setReady(true));
+    return () => a.stop();
+  }, [run, go, balloon, delay, unroll]);
 
   useEffect(() => {
     if (!ready || shown >= text.length) return;
@@ -202,6 +220,28 @@ export function QuestionCard({ text, compact = false, animate = true, onWritingC
 
   const half = h / 2;
   const onLayout = (e: LayoutChangeEvent) => setH(e.nativeEvent.layout.height);
+
+  if (balloon) {
+    return (
+      <Animated.View
+        style={{
+          opacity: unroll.interpolate({ inputRange: [0, 0.3], outputRange: [0, 1], extrapolate: 'clamp' }),
+          transformOrigin: 'left',
+          transform: [{ scale: unroll.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }],
+        }}
+      >
+        <View style={[styles.paper, styles.paperBalloon, compact && styles.paperCompact]}>
+          <ParchmentTexture />
+          <Text accessibilityLabel={text} style={[styles.question, compact && styles.questionCompact]}>
+            {text.slice(0, shown)}
+            <Text style={{ color: 'transparent' }}>{text.slice(shown)}</Text>
+          </Text>
+        </View>
+        {/* Drawn over the balloon's left edge so it reads as one shape pointing at the Hat. */}
+        <View style={styles.paperTail} />
+      </Animated.View>
+    );
+  }
 
   return (
     <View style={{ opacity: h || !run ? 1 : 0 }}>
@@ -288,7 +328,7 @@ export function Chip({ ok, children }: { ok: boolean; children: ReactNode }) {
 
 /**
  * Chunky, tactile game button: a darker "lip" underneath that the face presses into,
- * a glossy top highlight and a slow shimmer sweeping across.
+ * a glossy top highlight and a slow shimmer sweeping across (unless `shine` is off).
  */
 export function PrimaryButton({
   label,
@@ -299,6 +339,7 @@ export function PrimaryButton({
   height = 60,
   textColor = colors.ink,
   disabled = false,
+  shine = true,
 }: {
   label: string;
   onPress: () => void;
@@ -308,6 +349,7 @@ export function PrimaryButton({
   height?: number;
   textColor?: string;
   disabled?: boolean;
+  shine?: boolean;
 }) {
   if (disabled) {
     color = colors.track;
@@ -318,7 +360,7 @@ export function PrimaryButton({
   const [w, setW] = useState(0);
 
   useEffect(() => {
-    if (!w || disabled || prefersReducedMotion()) return;
+    if (!w || disabled || !shine || prefersReducedMotion()) return;
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(shimmer, { toValue: 1, duration: 1100, easing: Easing.inOut(Easing.quad), useNativeDriver: native }),
@@ -328,7 +370,7 @@ export function PrimaryButton({
     );
     loop.start();
     return () => loop.stop();
-  }, [w, shimmer, disabled]);
+  }, [w, shimmer, disabled, shine]);
 
   const to = (v: number) => Animated.spring(press, { toValue: v, friction: 6, tension: 300, useNativeDriver: native }).start();
 
@@ -349,7 +391,7 @@ export function PrimaryButton({
         style={[styles.face, { height, backgroundColor: color, transform: [{ translateY: press.interpolate({ inputRange: [0, 1], outputRange: [0, 4] }) }] }]}
       >
         <View style={[styles.gloss, { height: height * 0.5 }]} />
-        {w > 0 && (
+        {shine && w > 0 && (
           <Animated.View
             pointerEvents="none"
             style={[
@@ -376,6 +418,21 @@ export function GhostButton({ label, onPress, icon, style }: { label: string; on
     >
       {icon}
       <Text style={styles.ghostText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** Flat red forfeit button with a white flag. */
+function ExitButton({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Leave game"
+      hitSlop={8}
+      onPress={onPress}
+      style={({ pressed }) => [styles.exitButton, { opacity: pressed ? 0.7 : 1 }]}
+    >
+      <FlagIcon />
     </Pressable>
   );
 }
@@ -567,6 +624,16 @@ export function CloseIcon({ color = colors.text, size = 18 }: { color?: string; 
   );
 }
 
+/** A waving white flag: the universal "I give up". */
+export function FlagIcon({ color = '#FFFFFF', size = 20 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M5 21V3.5" />
+      <Path d="M5 4.5c2.5-1.8 5-1.8 7.5 0s5 1.8 7 .3v8.4c-2 1.5-4.5 1.5-7-.3s-5-1.8-7.5 0z" fill={color} />
+    </Svg>
+  );
+}
+
 export function SpeakerIcon({ muted, color, size = 18 }: { muted: boolean; color: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -591,10 +658,12 @@ export function SpeakerIcon({ muted, color, size = 18 }: { muted: boolean; color
 export const styles = StyleSheet.create({
   screen: { flex: 1, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 14, gap: 16 },
   topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  topBarSide: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   eyebrow: { fontFamily: fonts.bold, fontSize: 12, letterSpacing: 1.4, textTransform: 'uppercase', color: colors.muted },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 7, paddingHorizontal: 12, borderRadius: radii.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   pillText: { fontFamily: fonts.bold, fontSize: 14, color: colors.text, fontVariant: ['tabular-nums'] },
   iconButton: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  exitButton: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.red },
 
   bubble: { paddingVertical: 11, paddingHorizontal: 14, borderRadius: 18, backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.borderStrong },
   bubbleTail: {
@@ -621,6 +690,20 @@ export const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   paperCompact: { paddingVertical: 14, paddingHorizontal: 16 },
+  paperBalloon: { marginHorizontal: 0, marginVertical: 0, borderRadius: radii.lg, borderWidth: 2, borderColor: colors.parchmentEdge },
+  paperTail: {
+    position: 'absolute',
+    left: -8,
+    top: '50%',
+    marginTop: -8,
+    width: 16,
+    height: 16,
+    backgroundColor: colors.parchment,
+    borderLeftWidth: 2,
+    borderBottomWidth: 2,
+    borderColor: colors.parchmentEdge,
+    transform: [{ rotate: '45deg' }],
+  },
   rollCap: { position: 'absolute', width: 10, height: 10, borderRadius: 5, backgroundColor: colors.leather, borderWidth: 1.5, borderColor: colors.leatherDeep },
   question: { fontFamily: fonts.serif, fontSize: 24, lineHeight: 30, color: colors.parchmentInk },
   questionCompact: { fontSize: 19, lineHeight: 24 },

@@ -2,7 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { ComponentRef, useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, Share, Text, TextInput, View } from 'react-native';
 import { Enter, Pop, SparkleBurst, ThinkingDots } from '../components/Effects';
-import { HatMood } from '../components/HatWizard';
+import { HatMood } from '../components/WizardPlaceholder';
 import { Avatar, ChevronIcon, Chip, GhostButton, HostBubble, PrimaryButton, RoundButton, SectionHeader, ShareIcon, SoundButton, styles, WandIcon } from '../components/ui';
 import { ROSTER, Seat } from '../game/useGame';
 import { native, useAnimatedValue, usePulse } from '../motion';

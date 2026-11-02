@@ -7,7 +7,7 @@ import { CharacterStage } from '../avatar/CharacterStage';
 import { Animal, ANIMALS, Look, lookFor, RARITY, Skin, skinById, SKINS } from '../avatar/skins';
 import { chooseAnimal, equipSkin, markSeen, UnlockProgress, unlockProgress, useWardrobe } from '../avatar/store';
 import { Enter } from '../components/Effects';
-import { SparkleShape } from '../components/HatWizard';
+import { SparkleShape } from '../components/SparkleShape';
 import { RankProgress } from '../components/Rank';
 import { ChevronIcon, LockIcon, PrimaryButton, RoundButton, SoundButton, styles } from '../components/ui';
 import { native, useAnimatedValue } from '../motion';

@@ -2,24 +2,20 @@ import { useEffect, useRef, useState } from 'react';
 import { GestureResponderEvent, View, ViewProps, ViewStyle } from 'react-native';
 import { useReduceMotion } from '../motion';
 import { AnimalSwatch } from './AnimalSwatch';
-import { GLSurface } from './GLSurface';
 import type { Look } from './skins';
-import { createStage, Stage } from './stage';
+import type { Stage } from './stage';
+import { StageCanvas } from './StageCanvas';
 
 /**
  * Your animal on its pedestal. Drag sideways to spin it, tap to make it hop and wave.
- * Falls back to a flat portrait if the device can't give us WebGL 2.
+ * Rendered by Filament on iOS and Android and three.js on web; falls back to a flat portrait
+ * if neither can run.
  */
 export function CharacterStage({ look, label, style, onTouch, onPoke }: { look: Look; label: string; style?: ViewStyle; onTouch?: () => void; onPoke?: () => void }) {
   const stage = useRef<Stage | null>(null);
   const reduce = useReduceMotion();
-  // Read when the GL context arrives, which happens after mount.
-  const latest = useRef({ look, reduce });
   const [box, setBox] = useState(0);
 
-  useEffect(() => {
-    latest.current = { look, reduce };
-  });
   useEffect(() => stage.current?.setLook(look), [look]);
   useEffect(() => stage.current?.setStill(reduce), [reduce]);
 
@@ -57,14 +53,15 @@ export function CharacterStage({ look, label, style, onTouch, onPoke }: { look: 
   };
 
   return (
-    <GLSurface
+    <StageCanvas
       style={style}
       {...handlers}
       accessible
       accessibilityRole="image"
       accessibilityLabel={`3D preview of ${label}. Drag to spin, tap to poke.`}
       onLayout={(e) => setBox(Math.min(e.nativeEvent.layout.width, e.nativeEvent.layout.height))}
-      create={(gl, ready) => createStage(gl, latest.current.look, latest.current.reduce, ready)}
+      look={look}
+      still={reduce}
       onScene={(s) => (stage.current = s)}
       fallback={<View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>{box > 0 && <AnimalSwatch look={look} size={box * 0.75} />}</View>}
     />

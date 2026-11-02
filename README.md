@@ -23,7 +23,7 @@ The guesser rotates each round. Right now the other players are local bots (`src
 App.tsx                     routes: landing → ranked matchmaking / lobby → game (guess → vote → reveal → gameOver)
 src/theme.ts                "Midnight Academy" palette (taken from the Hat), fonts, heatColor()
 src/motion.ts               reduce-motion, pulse/entrance/count-up hooks, seeded random
-src/components/HatWizard    the Hat host, drawn in SVG with moods (idle, cast, think, happy, cheer, sad…)
+src/components/WizardPlaceholder  dashed stand-in for the Hat host, labelled with the mood it should show
 src/components/MagicSky     animated night-sky background (stars, nebulae, motes, shooting stars)
 src/components/Effects      sparkle bursts, confetti, Enter/Pop transitions, thinking dots
 src/data/questions.ts       question bank — add your own here

@@ -3,7 +3,7 @@ import { rankFor, rpDelta, standings, useLadder } from '../game/rank';
 import { ROSTER } from '../game/useGame';
 import { alpha, colors, fonts } from '../theme';
 import { Enter } from './Effects';
-import { HatWizard } from './HatWizard';
+import { WizardPlaceholder } from './WizardPlaceholder';
 import { RankEmblem, RankProgress } from './Rank';
 import { Sheet } from './Sheet';
 import { Avatar, SectionHeader, styles, TrophyIcon } from './ui';
@@ -69,7 +69,7 @@ export function ScoreboardSheet({ visible, onClose }: { visible: boolean; onClos
         </View>
       ) : (
         <View style={[styles.row, { gap: 10 }]}>
-          <HatWizard size={54} mood="wave" aura={false} />
+          <WizardPlaceholder size={54} mood="wave" />
           <Text style={[styles.body, { flex: 1, color: colors.text }]}>Play a ranked game to start climbing the ladder.</Text>
         </View>
       )}

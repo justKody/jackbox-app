@@ -4,8 +4,9 @@ import { correctCall, scoreRound } from './scoring';
 import type { Call, GameState, Player, Question } from './types';
 
 export const ROUNDS = 6;
-export const GUESS_SECONDS = 20;
-export const VOTE_SECONDS = 15;
+// Phase lengths for games run on this device. Online games use the server's, and only fall back to these.
+export const GUESS_SECONDS = 10;
+export const VOTE_SECONDS = 10;
 
 export type Seat = Omit<Player, 'score'>;
 
@@ -149,6 +150,9 @@ export function useGame(roster: Seat[] = ROSTER) {
     reveal: useCallback(() => dispatch({ type: 'reveal' }), []),
     next: useCallback(() => dispatch({ type: 'next' }), []),
     restart: useCallback(() => dispatch({ type: 'restart' }), []),
+    // An online game takes its phase lengths from the server; here they're the app's own.
+    guessSeconds: GUESS_SECONDS,
+    voteSeconds: VOTE_SECONDS,
     // Only an online game has someone else's dial to watch; here the guess screen is always yours.
     dial: undefined as number | undefined,
     moveDial: useCallback((_value: number) => {}, []),
